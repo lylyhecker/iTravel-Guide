@@ -1,0 +1,26 @@
+[
+  {
+    "id": "dai-noi-hue",
+    "name": "Đại Nội Huế",
+    "coords": [16.46974, 107.57969],
+    "intro": "Đại Nội Huế là quần thể cung điện và thành quách của triều Nguyễn.",
+    "read_url": "data/reads/dai-noi-hue.txt",
+    "quiz_url": "data/quizzes/dai-noi-hue.json"
+  },
+  {
+    "id": "chua-thien-mu",
+    "name": "Chùa Thiên Mụ",
+    "coords": [16.4556, 107.5460],
+    "intro": "Chùa Thiên Mụ là ngôi chùa cổ nằm bên sông Hương, biểu tượng tâm linh của Huế.",
+    "read_url": "data/reads/chua-thien-mu.txt",
+    "quiz_url": "data/quizzes/chua-thien-mu.json"
+  },
+  {
+    "id": "lang-tu-duc",
+    "name": "Lăng Tự Đức",
+    "coords": [16.4305, 107.5672],
+    "intro": "Lăng Tự Đức là nơi yên nghỉ của vua Tự Đức, nổi tiếng với phong cảnh thơ mộng.",
+    "read_url": "data/reads/lang-tu-duc.txt",
+    "quiz_url": "data/quizzes/lang-tu-duc.json"
+  }
+]
