@@ -145,48 +145,86 @@
   <!-- QRCode.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
+  <!-- ThemeSync v3: đồng bộ theme theo tài khoản (giữ nguyên UI hiện có) -->
   <script>
-  /* ===================== Theme Sync (Firebase + BroadcastChannel) ===================== */
-  (function ThemeSync(){
-    const root=document.documentElement, LS_KEY='app-theme';
-    const btn=document.getElementById('themeBtn'), icon=document.getElementById('themeIcon'), fav=document.getElementById('favicon');
-    const bc = ('BroadcastChannel' in window)? new BroadcastChannel('theme-sync') : null;
-    let current=null, unsub=null, suppress=false;
+  (function ThemeSyncV3(){
+    const LS_KEY='voucher-theme';
+    const root=document.documentElement;
+    const bc=('BroadcastChannel' in window)?new BroadcastChannel('theme-sync'):null;
 
+    let current=null, uid=null, unsubUser=null, suppressNext=false;
+
+    const getSystem=()=> (matchMedia && matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
+    function dispatchChange(theme){ try{window.dispatchEvent(new CustomEvent('themechange',{detail:{theme}}))}catch{} }
     function applyTheme(t){
-      current=t; root.setAttribute('data-theme',t);
-      if(icon) icon.src = t==='dark'?'assets/theme-dark.svg':'assets/theme-light.svg';
+      current=t;
+      t?root.setAttribute('data-theme',t):root.removeAttribute('data-theme');
+      // icon & favicon
+      const icon=document.getElementById('themeIcon');
+      if(icon){ icon.src = t==='dark'?'assets/theme-dark.svg':'assets/theme-light.svg'; icon.alt = t==='dark'?'Dark':'Light'; }
+      const fav=document.getElementById('favicon');
       if(fav){ fav.href = t==='dark'?'assets/favicon-dark.svg':'assets/favicon-light.svg'; fav.href=fav.href.split('?')[0]+'?v='+Date.now(); }
-      try{ localStorage.setItem(LS_KEY,t); }catch{}
+      dispatchChange(t);
       if(bc) bc.postMessage({type:'theme-applied', theme:t});
     }
-    const getSystem=()=> (matchMedia && matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
+    function getLocal(){ try{return localStorage.getItem(LS_KEY)}catch{return null} }
+    function setLocal(t){ try{ localStorage.setItem(LS_KEY,t) }catch{} }
+
     async function setRemoteTheme(t){
-      const u=auth.currentUser; if(!u) return; suppress=true;
+      if(!uid) return;
+      suppressNext=true;
       try{
-        await db.collection('users').doc(u.uid).set({ prefs:{ theme:t, updatedAt: firebase.firestore.FieldValue.serverTimestamp() } },{merge:true});
-      }finally{ setTimeout(()=> suppress=false, 250); }
+        await firebase.firestore().collection('users').doc(uid).set({
+          prefs:{ theme:t, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }
+        }, {merge:true});
+      }finally{
+        setTimeout(()=> suppressNext=false, 250);
+      }
     }
 
-    btn?.addEventListener('click', async()=>{
-      const next=(current||localStorage.getItem(LS_KEY)||getSystem())==='dark'?'light':'dark';
-      applyTheme(next); await setRemoteTheme(next);
-    });
+    // API để nút bấm gọi
+    window.ThemeManager={
+      getTheme(){ return current || root.getAttribute('data-theme') || getLocal() || getSystem(); },
+      async setTheme(t){ if(t!=='light'&&t!=='dark')return; applyTheme(t); setLocal(t); await setRemoteTheme(t); },
+      async toggle(){ const next=this.getTheme()==='dark'?'light':'dark'; await this.setTheme(next); }
+    };
+    document.getElementById('themeBtn')?.addEventListener('click', ()=> window.ThemeManager.toggle());
 
-    applyTheme(localStorage.getItem(LS_KEY)||getSystem());
-    if(bc){ bc.onmessage=(ev)=>{ const t=ev?.data?.theme; if(t && t!==current) applyTheme(t); }; }
+    // Sync đa tab
+    if(bc){
+      bc.onmessage=(ev)=>{ if(ev?.data?.type==='theme-applied'){ const t=ev.data.theme; if(t && t!==current) applyTheme(t); } };
+    }
 
-    auth.onAuthStateChanged(async (u)=>{
-      updateAuthUI(u);
-      if(unsub){ unsub(); unsub=null; }
-      if(!u){ applyTheme(localStorage.getItem(LS_KEY)||getSystem()); return; }
-      const ref=db.collection('users').doc(u.uid);
-      const snap=await ref.get();
-      const remote = snap.exists ? (snap.data()?.prefs?.theme || null) : null;
-      if(remote){ applyTheme(remote); try{ localStorage.setItem(LS_KEY,remote); }catch{} }
-      unsub = ref.onSnapshot(s=>{
-        if(!s.exists) return; const t=s.data()?.prefs?.theme; if(!t||suppress) return;
-        if(t!==current){ applyTheme(t); try{ localStorage.setItem(LS_KEY,t); }catch{} }
+    // Áp theme ban đầu (khách)
+    applyTheme(getLocal() || getSystem());
+
+    // Login → đồng bộ theo tài khoản
+    firebase.auth().onAuthStateChanged(async (user)=>{
+      if(unsubUser){ unsubUser(); unsubUser=null; }
+      uid = user?.uid || null;
+
+      if(!uid){ applyTheme(getLocal() || getSystem()); return; }
+
+      const userRef=firebase.firestore().collection('users').doc(uid);
+      const snap=await userRef.get();
+      let remoteTheme = snap.exists ? (snap.data()?.prefs?.theme || null) : null;
+
+      if(!remoteTheme){
+        remoteTheme = getLocal() || getSystem();
+        applyTheme(remoteTheme);
+        setLocal(remoteTheme);
+        await setRemoteTheme(remoteTheme);
+      }else{
+        setLocal(remoteTheme);
+        applyTheme(remoteTheme);
+      }
+
+      unsubUser = userRef.onSnapshot(s=>{
+        if(!s.exists) return;
+        const t=s.data()?.prefs?.theme;
+        if(!t) return;
+        if(suppressNext) return;
+        if(t!==current){ setLocal(t); applyTheme(t); }
       });
     });
   })();
