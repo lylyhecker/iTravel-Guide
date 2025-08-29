@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Đổi quà</title>
+
+  <!-- Tailwind chỉ dùng cho layout/spacing -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Favicon (ThemeManager sẽ đổi) -->
+  <link id="favicon" rel="icon" type="image/svg+xml" href="assets/favicon-light.svg"/>
+
+  <style>
+    /* ========= THEME (y hệt quiz) ========= */
+    :root{
+      --bg:#0b1020; --bg-soft:#11162a; --card:#121a33; --text:#e7ecf7; --muted:#a8b2d1;
+      --primary:#7aa2ff; --primary-strong:#5a86ff; --ok:#22c55e; --err:#ef4444;
+      --border:rgba(255,255,255,.08); --shadow:0 10px 30px rgba(0,0,0,.25);
+    }
+    @media (prefers-color-scheme: light){
+      :root{
+        --bg:#f6f8fa; --bg-soft:#eef1f6; --card:#ffffff; --text:#111827; --muted:#6b7280;
+        --primary:#2563eb; --primary-strong:#1e40af; --ok:#16a34a; --err:#dc2626;
+        --border:rgba(0,0,0,.08); --shadow:0 10px 30px rgba(0,0,0,.08);
+      }
+    }
+    :root[data-theme="light"]{ --bg:#f6f8fa; --bg-soft:#eef1f6; --card:#ffffff; --text:#111827; --muted:#6b7280; --primary:#2563eb; --primary-strong:#1e40af; --ok:#16a34a; --err:#dc2626; --border:rgba(0,0,0,.08); --shadow:0 10px 30px rgba(0,0,0,.08); }
+    :root[data-theme="dark"]{ --bg:#0b1020; --bg-soft:#11162a; --card:#121a33; --text:#e7ecf7; --muted:#a8b2d1; --primary:#7aa2ff; --primary-strong:#5a86ff; --ok:#22c55e; --err:#ef4444; --border:rgba(255,255,255,.08); --shadow:0 10px 30px rgba(0,0,0,.25); }
+
+    html,body{height:100%}
+    body{
+      margin:0; color:var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Inter, Roboto, Arial;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(122,162,255,.18), transparent 60%),
+        radial-gradient(900px 500px at 110% 10%, rgba(125,211,252,.16), transparent 60%),
+        var(--bg);
+    }
+
+    .card{ background: var(--card); border:1px solid var(--border); border-radius:18px; box-shadow: var(--shadow); }
+    .icon { width: 18px; height: 18px; object-fit: contain; display:inline-block }
+    .muted{ color: var(--muted); }
+
+    .btn{
+      appearance:none; border:none; cursor:pointer;
+      background: var(--primary); color:white; font-weight:700;
+      padding:10px 14px; border-radius:12px;
+      transition: transform .12s ease, background .2s ease;
+      box-shadow: 0 6px 18px rgba(37,99,235,.25);
+      text-decoration:none; display:inline-flex; align-items:center; gap:8px;
+    }
+    .btn:hover{ transform: translateY(-1px); background: var(--primary-strong); }
+    .btn.secondary{ background: transparent; color: var(--text); border:1px solid var(--border); box-shadow:none; }
+    .btn.secondary:hover{ background: var(--bg-soft); }
+
+    /* Thanh số dư */
+    #balance-wrap{ display:flex; align-items:center; gap:10px; }
+    #balance-bar{ width: 160px; height: 10px; background: var(--bg-soft); border:1px solid var(--border); border-radius: 999px; overflow: hidden; }
+    #balance-fill{ height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary), #60a5fa); transition: width 0.35s ease; }
+    #balance-text{ font-size: 12px; color: var(--muted); }
+
+    /* Toast */
+    .toast{ position:fixed; top:16px; right:16px; max-width:320px; z-index:60; background:var(--card); color:var(--text); border:1px solid var(--border); border-left:4px solid var(--primary); border-radius:12px; padding:12px 14px; box-shadow:var(--shadow); opacity:0; transform: translateY(-6px); transition: all .25s ease; pointer-events:none; }
+    .toast.show{ opacity:1; transform:none; pointer-events:auto }
+    .toast.success{ border-left-color:#22c55e } .toast.error{ border-left-color:#ef4444 } .toast.info{ border-left-color:var(--primary) }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="app-header shadow-md">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl ring-1 ring-white/10 grid place-items-center" style="background:linear-gradient(135deg,var(--primary),#60a5fa)">
+          <img src="assets/gift.svg" class="icon" alt="">
+        </div>
+        <div>
+          <h1 class="text-lg font-extrabold">Đổi quà</h1>
+          <div class="text-xs muted" id="statusSub">Chọn quà để đổi</div>
+        </div>
+      </div>
+
+      <!-- User + số dư (Điểm/XP) -->
+      <div class="flex items-center gap-4 flex-wrap">
+        <div class="text-right">
+          <div id="userName" class="font-bold">Khách</div>
+          <div id="userStatsLine" class="text-sm muted"></div>
+          <div id="balance-wrap" class="mt-1" style="display:none">
+            <div id="balance-bar"><div id="balance-fill"></div></div>
+            <span id="balance-text"></span>
+          </div>
+        </div>
+
+        <a class="btn secondary" href="library.html"><img src="assets/book.svg" class="icon" alt=""> Thư viện</a>
+        <button class="btn secondary" id="themeBtn" title="Đổi giao diện"><img id="themeIcon" class="icon" alt=""></button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="max-w-6xl mx-auto px-4 py-6">
+    <section class="card p-5">
+      <h2 class="text-xl font-bold mb-3 flex items-center gap-2"><img src="assets/gift.svg" class="icon" alt=""> <span>Danh sách quà</span></h2>
+      <div id="gift-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <div class="max-w-6xl mx-auto px-4 py-4 text-center text-sm muted">
+      © 2025 Quiz & Assistant Web — Design by Mr.Hecker
+    </div>
+  </footer>
+
+  <!-- Toast -->
+  <div id="toast" class="toast"><strong id="toast-title"></strong><div id="toast-msg" class="mt-1 text-sm"></div></div>
+
+  <!-- Firebase compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
+  <!-- ThemeManager v2.1 -->
+  <script>
+  (function ThemeManager_v21(){
+    const root=document.documentElement; const LS='voucher-theme';
+    const sys=()=> (matchMedia && matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
+    function apply(t){ root.setAttribute('data-theme', t); dispatchEvent(new CustomEvent('themechange',{detail:{theme:t}})); }
+    (function init(){ apply(localStorage.getItem(LS) || sys()); })();
+    document.getElementById('themeBtn')?.addEventListener('click',()=>window.ThemeManager?.toggle());
+    window.ThemeManager={ getTheme(){return root.getAttribute('data-theme')||sys();}, setTheme(t){ if(t!=='light'&&t!=='dark')return; apply(t); localStorage.setItem(LS,t); }, toggle(){ this.setTheme(this.getTheme()==='dark'?'light':'dark'); } };
+    const fav=document.getElementById('favicon'); const icon=document.getElementById('themeIcon');
+    function assets(mode){ if(icon){icon.src=mode==='dark'?'assets/theme-dark.svg':'assets/theme-light.svg'; icon.alt=mode==='dark'?'Dark':'Light';} if(fav){fav.href=mode==='dark'?'assets/favicon-dark.svg':'assets/favicon-light.svg'; fav.href=fav.href.split('?')[0]+'?v='+Date.now();}}
+    assets(window.ThemeManager.getTheme()); addEventListener('themechange',e=>assets(e.detail.theme));
+  })();
+  </script>
+
+  <script>
+    // ===== Firebase init =====
+    const firebaseConfig = {
+      apiKey: "AIzaSyDOhTKHU4P3jJ7aTkvSiewNoHu1_KXkcrU",
+      authDomain: "loginandsignin-4932b.firebaseapp.com",
+      projectId: "loginandsignin-4932b",
+      storageBucket: "loginandsignin-4932b.appspot.com",
+      messagingSenderId: "863133586719",
+      appId: "1:863133586719:web:81eb32db8e08e8d89e8c2a"
+    };
+    if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const auth=firebase.auth(); const db=firebase.firestore();
+
+    const $=id=>document.getElementById(id);
+    function toast(title,msg,type='info',after=null){
+      const t=$('toast'); $('toast-title').textContent=title; $('toast-msg').textContent=msg;
+      t.className='toast '+type; requestAnimationFrame(()=>t.classList.add('show'));
+      setTimeout(()=>{ t.classList.remove('show'); after&&after(); }, 2300);
+    }
+
+    // ========= User Info & Balance (Điểm hoặc XP) =========
+    let currentUser=null;
+    let balanceLabel='Điểm';  // "Điểm" hoặc "XP"
+    let balanceValue=0;       // số dư hiện dùng để đổi
+    let hasPointsField=false; // true nếu user có 'points' trong Firestore
+    let userLevel=1, userXP=0;
+
+    // Sanitize tên như quiz
+    function sanitizeUsername(name){
+      if (!name) return "Khach";
+      const ascii = name.normalize("NFKD").replace(/[^\x00-\x7F]/g,"");
+      const cleaned = ascii.replace(/\s+/g,"-").replace(/[^a-zA-Z0-9_-]/g,"");
+      return cleaned || "Khach";
+    }
+
+    async function loadUserStats(){
+      if (!auth.currentUser) return;
+      const ref = db.collection('users').doc(auth.currentUser.uid);
+      const snap = await ref.get();
+      const data = snap.data() || {};
+
+      // Ưu tiên 'points'. Nếu không có points mà có 'xp' => dùng XP
+      if (typeof data.points === 'number'){
+        hasPointsField = true;
+        balanceLabel = 'Điểm';
+        balanceValue = Number(data.points || 0);
+      } else if (typeof data.xp === 'number'){
+        hasPointsField = false;
+        balanceLabel = 'XP';
+        balanceValue = Number(data.xp || 0);
+      } else {
+        hasPointsField = true; // mặc định tạo points
+        balanceLabel = 'Điểm';
+        balanceValue = 0;
+        // khởi tạo points=0 để lần sau dùng "Điểm"
+        await ref.set({ points: 0 }, { merge:true });
+      }
+
+      userLevel = Number(data.level || 1);
+      userXP    = Number(data.xp    || 0);
+
+      applyUserHeader();
+    }
+
+    function applyUserHeader(){
+      const raw = currentUser?.displayName || currentUser?.email?.split('@')[0] || `ID-${currentUser?.uid?.slice(0,6)}`;
+      $('userName').textContent = sanitizeUsername(raw);
+
+      const parts=[];
+      parts.push(`${balanceLabel}: ${balanceValue}`);
+      if (userLevel) parts.push(`Cấp: ${userLevel}`);
+      $('userStatsLine').textContent = parts.join(' • ');
+
+      const wrap = $('balance-wrap');
+      const bar  = $('balance-fill');
+      const txt  = $('balance-text');
+      if (wrap && bar && txt){
+        wrap.style.display = 'flex';
+        const quota = 100; // hiển thị tiến độ theo mốc 100
+        const pct = Math.max(0, Math.min(100, (balanceValue % quota) / quota * 100));
+        bar.style.width = pct + '%';
+        txt.textContent = `Tiến độ: ${(balanceValue % quota)}/${quota} (${balanceLabel})`;
+      }
+    }
+
+    // ========= Gift list (demo) =========
+    const gifts = [
+      { id:'g1', name:'Topping miễn phí', cost:50 },
+      { id:'g2', name:'Giảm 20%', cost:100 },
+      { id:'g3', name:'Combo nước', cost:150 },
+      { id:'g4', name:'Voucher 50k', cost:200 },
+      { id:'g5', name:'Thẻ quà tặng 100k', cost:300 },
+      { id:'g6', name:'Thẻ game 200k', cost:500 },
+      { id:'g7', name:'Thẻ quà tặng 500k', cost:1000 },
+      { id:'g8', name:'Thẻ quà tặng 1 triệu', cost:2000 },
+      { id:'g9', name:'Thẻ quà tặng 2 triệu', cost:5000 },
+      { id:'g10', name:'Thẻ quà tặng 5 triệu', cost:10000 },
+      { id:'g11', name:'Thẻ quà tặng 10 triệu', cost:20000 },
+      { id:'g12', name:'Thẻ quà tặng 20 triệu', cost:50000 }
+    ];
+
+    function renderGifts(){
+      const box = $('gift-list'); box.innerHTML='';
+      gifts.forEach(g=>{
+        const card = document.createElement('div');
+        card.className = 'card p-4 flex justify-between items-center';
+        card.innerHTML = `
+          <div>
+            <div class="font-bold">${g.name}</div>
+            <div class="muted text-sm">Giá: ${g.cost} ${balanceLabel.toLowerCase()}</div>
+          </div>
+          <button class="btn">Đổi</button>
+        `;
+        card.querySelector('button').onclick = ()=> redeemGift(g);
+        box.appendChild(card);
+      });
+    }
+
+    // ========= Redeem flow =========
+    async function redeemGift(gift){
+      const u = auth.currentUser;
+      if(!u){ toast('Cần đăng nhập','Hãy đăng nhập trước khi đổi quà.','error', ()=> location.href='login.html'); return; }
+
+      // Kiểm tra đủ số dư (points hoặc xp)
+      if (balanceValue < gift.cost){
+        toast(`Không đủ ${balanceLabel.toLowerCase()}`, `Cần ${gift.cost} ${balanceLabel.toLowerCase()}, hiện có ${balanceValue}.`, 'error');
+        return;
+      }
+
+      try{
+        const validDays = 7;
+        const expiresAt = new Date(Date.now() + validDays*86400000);
+
+        // Tạo voucher
+        const ref = await db.collection('vouchers').add({
+          ownerUid: u.uid,
+          uid: u.uid,
+          giftId: gift.id,
+          giftName: gift.name,
+          cost: gift.cost,
+          status: 'active',
+          validDays,
+          issuedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          expiresAt: firebase.firestore.Timestamp.fromDate(expiresAt)
+        });
+        const voucherId = ref.id;
+
+        // Ghi log
+        await db.collection('redeem_logs').add({
+          uid: u.uid,
+          voucherId,
+          giftId: gift.id,
+          giftName: gift.name,
+          cost: gift.cost,
+          redeemedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Trừ số dư: nếu có points → trừ points; nếu đang dùng XP → trừ xp
+        const userRef = db.collection('users').doc(u.uid);
+        if (hasPointsField){
+          const newPoints = Math.max(0, balanceValue - gift.cost);
+          await userRef.set({ points: newPoints, last_voucher_id: voucherId }, { merge:true });
+          balanceValue = newPoints;
+        } else {
+          const newXP = Math.max(0, balanceValue - gift.cost);
+          await userRef.set({ xp: newXP, last_voucher_id: voucherId }, { merge:true });
+          balanceValue = newXP;
+        }
+
+        // Cập nhật UI header
+        applyUserHeader();
+
+        toast('Đổi thành công','Voucher đã được tạo.','success', ()=>{
+          location.href = 'voucher.html?id=' + encodeURIComponent(voucherId);
+        });
+      }catch(e){
+        console.error(e);
+        toast('Lỗi', e.message || 'Không thể đổi quà.', 'error');
+      }
+    }
+
+    // ========= Auth =========
+    auth.onAuthStateChanged(async (u)=>{
+      currentUser = u;
+      renderGifts(); // render theo nhãn Điểm/XP hiện thời (sẽ cập nhật lại sau loadUserStats)
+      if(u){
+        await loadUserStats();
+        renderGifts(); // re-render để cập nhật nhãn giá (điểm/xp)
+      } else {
+        $('userName').textContent = 'Khách';
+        $('userStatsLine').textContent = '';
+        $('balance-wrap').style.display = 'none';
+        balanceLabel='Điểm';
+        balanceValue=0;
+        renderGifts();
+      }
+    });
+  </script>
+</body>
+</html>
+<script>
+  // ========= Theme icon =========
+  const themeIcon = document.getElementById('themeIcon');
+  if (themeIcon) {
+    themeIcon.src = window.ThemeManager.getTheme() === 'dark' ? 'assets/theme-dark.svg' : 'assets/theme-light.svg';
+    themeIcon.alt = window.ThemeManager.getTheme() === 'dark' ? 'Dark Mode' : 'Light Mode';
+  }

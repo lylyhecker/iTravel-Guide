@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>404 - Không tìm thấy trang</title>
+
+  <!-- Favicon SVG -->
+  <link id="favicon" rel="icon" type="image/svg+xml" href="assets/favicon-light.svg">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root{ --bg:#0b1020; --bg-soft:#11162a; --card:#121a33; --text:#e7ecf7; --muted:#a8b2d1; --primary:#7aa2ff; --primary-strong:#5a86ff; --ok:#22c55e; --err:#ef4444; --border:rgba(255,255,255,.08); --shadow:0 10px 30px rgba(0,0,0,.25); }
+    @media (prefers-color-scheme: light){
+      :root{ --bg:#f6f8fa; --bg-soft:#eef1f6; --card:#ffffff; --text:#111827; --muted:#6b7280; --primary:#2563eb; --primary-strong:#1e40af; --ok:#16a34a; --err:#dc2626; --border:rgba(0,0,0,.08); --shadow:0 10px 30px rgba(0,0,0,.08); }
+    }
+    :root[data-theme="light"]{ --bg:#f6f8fa; --bg-soft:#eef1f6; --card:#ffffff; --text:#111827; --muted:#6b7280; --primary:#2563eb; --primary-strong:#1e40af; --ok:#16a34a; --err:#dc2626; --border:rgba(0,0,0,.08); --shadow:0 10px 30px rgba(0,0,0,.08); }
+    :root[data-theme="dark"]{ --bg:#0b1020; --bg-soft:#11162a; --card:#121a33; --text:#e7ecf7; --muted:#a8b2d1; --primary:#7aa2ff; --primary-strong:#5a86ff; --ok:#22c55e; --err:#ef4444; --border:rgba(255,255,255,.08); --shadow:0 10px 30px rgba(0,0,0,.25); }
+
+    html,body{height:100%}
+    body{
+      margin:0; color:var(--text);
+      font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(122,162,255,.18), transparent 60%),
+        radial-gradient(900px 500px at 110% 10%, rgba(125,211,252,.16), transparent 60%),
+        var(--bg);
+    }
+    .card{ background:var(--card); color:var(--text); border:1px solid var(--border); border-radius:18px; box-shadow:var(--shadow); }
+    .btn{ appearance:none; border:none; cursor:pointer; background:var(--primary); color:#fff; font-weight:700; padding:10px 14px; border-radius:12px; transition:transform .12s ease, background .2s ease; box-shadow:0 6px 18px rgba(37,99,235,.25); display:inline-flex; align-items:center; gap:8px; justify-content:center; text-decoration:none; }
+    .btn:hover{ transform:translateY(-1px); background:var(--primary-strong); }
+    .btn.secondary{ background:transparent; color:var(--text); border:1px solid var(--border); box-shadow:none; }
+    .btn.secondary:hover{ background:var(--bg-soft); }
+    .icon{width:18px;height:18px;object-fit:contain;display:inline-block}
+  </style>
+</head>
+<body>
+  <!-- Nút đổi theme -->
+  <div class="fixed top-2 right-2">
+    <button class="btn secondary" id="themeBtn" title="Đổi giao diện">
+      <img id="themeIcon" src="assets/theme-light.svg" class="icon" alt="theme">
+    </button>
+  </div>
+
+  <main class="min-h-screen flex items-center justify-center p-5">
+    <section class="card max-w-xl w-full p-8 text-center">
+      <img src="assets/404.svg" class="w-16 h-16 mx-auto mb-4" alt="not-found">
+      <h1 class="text-5xl font-extrabold">404</h1>
+      <h2 class="text-2xl font-semibold mt-2 muted">Ôi không! Trang không tìm thấy</h2>
+      <p class="mt-4 muted">
+        Có vẻ bạn đã lạc đường trong hành trình! Trang bạn đang tìm không tồn tại.
+        Hãy kiểm tra lại URL hoặc quay về trang chủ để tiếp tục khám phá.
+      </p>
+      <div class="mt-6 flex items-center justify-center gap-3 flex-wrap">
+        <a href="index.html" class="btn">
+          <img src="assets/homepage.svg" class="icon" alt="home"> Trang chủ
+        </a>
+        <a href="login.html" class="btn secondary">
+          <img src="assets/user.svg" class="icon" alt="login"> Đăng nhập
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <!-- Firebase compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script>
+    const firebaseConfig={apiKey:"AIzaSyDOhTKHU4P3jJ7aTkvSiewNoHu1_KXkcrU",authDomain:"loginandsignin-4932b.firebaseapp.com",projectId:"loginandsignin-4932b",storageBucket:"loginandsignin-4932b.appspot.com",messagingSenderId:"863133586719",appId:"1:863133586719:web:81eb32db8e08e8d89e8c2a"};
+    if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  </script>
+
+  <!-- ThemeSync v3: đồng bộ theme theo tài khoản (giữ nguyên UI hiện có) -->
+  <script>
+  (function ThemeSyncV3(){
+    const LS_KEY='voucher-theme';
+    const root=document.documentElement;
+    const bc=('BroadcastChannel' in window)?new BroadcastChannel('theme-sync'):null;
+
+    let current=null, uid=null, unsubUser=null, suppressNext=false;
+
+    const getSystem=()=> (matchMedia && matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
+    function dispatchChange(theme){ try{window.dispatchEvent(new CustomEvent('themechange',{detail:{theme}}))}catch{} }
+    function applyTheme(t){
+      current=t;
+      t?root.setAttribute('data-theme',t):root.removeAttribute('data-theme');
+      // icon & favicon
+      const icon=document.getElementById('themeIcon');
+      if(icon){ icon.src = t==='dark'?'assets/theme-dark.svg':'assets/theme-light.svg'; icon.alt = t==='dark'?'Dark':'Light'; }
+      const fav=document.getElementById('favicon');
+      if(fav){ fav.href = t==='dark'?'assets/favicon-dark.svg':'assets/favicon-light.svg'; fav.href=fav.href.split('?')[0]+'?v='+Date.now(); }
+      dispatchChange(t);
+      if(bc) bc.postMessage({type:'theme-applied', theme:t});
+    }
+    function getLocal(){ try{return localStorage.getItem(LS_KEY)}catch{return null} }
+    function setLocal(t){ try{ localStorage.setItem(LS_KEY,t) }catch{} }
+
+    async function setRemoteTheme(t){
+      if(!uid) return;
+      suppressNext=true;
+      try{
+        await firebase.firestore().collection('users').doc(uid).set({
+          prefs:{ theme:t, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }
+        }, {merge:true});
+      }finally{
+        setTimeout(()=> suppressNext=false, 250);
+      }
+    }
+
+    // API để nút bấm gọi
+    window.ThemeManager={
+      getTheme(){ return current || root.getAttribute('data-theme') || getLocal() || getSystem(); },
+      async setTheme(t){ if(t!=='light'&&t!=='dark')return; applyTheme(t); setLocal(t); await setRemoteTheme(t); },
+      async toggle(){ const next=this.getTheme()==='dark'?'light':'dark'; await this.setTheme(next); }
+    };
+    document.getElementById('themeBtn')?.addEventListener('click', ()=> window.ThemeManager.toggle());
+
+    // Sync đa tab
+    if(bc){
+      bc.onmessage=(ev)=>{ if(ev?.data?.type==='theme-applied'){ const t=ev.data.theme; if(t && t!==current) applyTheme(t); } };
+    }
+
+    // Áp theme ban đầu (khách)
+    applyTheme(getLocal() || getSystem());
+
+    // Login → đồng bộ theo tài khoản
+    firebase.auth().onAuthStateChanged(async (user)=>{
+      if(unsubUser){ unsubUser(); unsubUser=null; }
+      uid = user?.uid || null;
+
+      if(!uid){ applyTheme(getLocal() || getSystem()); return; }
+
+      const userRef=firebase.firestore().collection('users').doc(uid);
+      const snap=await userRef.get();
+      let remoteTheme = snap.exists ? (snap.data()?.prefs?.theme || null) : null;
+
+      if(!remoteTheme){
+        remoteTheme = getLocal() || getSystem();
+        applyTheme(remoteTheme);
+        setLocal(remoteTheme);
+        await setRemoteTheme(remoteTheme);
+      }else{
+        setLocal(remoteTheme);
+        applyTheme(remoteTheme);
+      }
+
+      unsubUser = userRef.onSnapshot(s=>{
+        if(!s.exists) return;
+        const t=s.data()?.prefs?.theme;
+        if(!t) return;
+        if(suppressNext) return;
+        if(t!==current){ setLocal(t); applyTheme(t); }
+      });
+    });
+  })();
+  </script>
+
+  <!-- Username Validator (chặn Unicode, chỉ ASCII) -->
+  <script>
+    (function UsernameValidatorInit(){
+      const NO_UNICODE_RE = /^[\x20-\x7E]+$/;
+      const USERNAME_ASCII_RE = /^(?!.*\.\.)(?!.*__)(?!.*--)[A-Za-z0-9](?:[A-Za-z0-9._-]{0,28}[A-Za-z0-9])$/;
+
+      function validateUsernameValue(val){
+        const s = (val||"").trim();
+        if(!NO_UNICODE_RE.test(s)) {
+          return { ok:false, msg:"Chỉ cho phép ASCII, không ký tự Unicode." };
+        }
+        if(!USERNAME_ASCII_RE.test(s)) {
+          return { ok:false, msg:"2–30 ký tự: A–Z a–z 0–9 . _ -, không đầu/cuối bằng . _ -, không có .. __ --" };
+        }
+        return { ok:true, msg:"" };
+      }
+
+      function attach(el){
+        if(!el || el._usernameValidatorBound) return;
+        el._usernameValidatorBound = true;
+
+        el.setAttribute("autocomplete","username");
+        el.setAttribute("spellcheck","false");
+        el.setAttribute("autocapitalize","off");
+        el.setAttribute("minlength","2");
+        el.setAttribute("maxlength","30");
+
+        el.addEventListener("input", () => {
+          const {ok, msg} = validateUsernameValue(el.value);
+          el.setCustomValidity(ok ? "" : msg);
+          el.reportValidity();
+        });
+
+        el.form?.addEventListener("submit", (e) => {
+          const {ok, msg} = validateUsernameValue(el.value);
+          if(!ok){
+            e.preventDefault();
+            el.setCustomValidity(msg);
+            el.reportValidity();
+            el.focus();
+          } else {
+            el.setCustomValidity("");
+          }
+        });
+      }
+
+      document.querySelectorAll('input[name="username"], [data-username]').forEach(attach);
+
+      const obs = new MutationObserver((mutations)=>{
+        mutations.forEach(m=>{
+          m.addedNodes.forEach(node=>{
+            if(!(node instanceof Element)) return;
+            if(node.matches?.('input[name="username"], [data-username]')) attach(node);
+            node.querySelectorAll?.('input[name="username"], [data-username]').forEach(attach);
+          });
+        });
+      });
+      obs.observe(document.documentElement, {childList:true, subtree:true});
+
+      window.UsernameValidator = {
+        validateRaw: (val)=> validateUsernameValue(val),
+        regex: { NO_UNICODE_RE, USERNAME_ASCII_RE },
+        attach
+      };
+    })();
+  </script>
+</body>
+</html>

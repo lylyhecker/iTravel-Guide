@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đăng Nhập</title>
+
+  <!-- Favicon SVG theo theme -->
+  <link id="favicon" rel="icon" type="image/svg+xml" href="assets/favicon-light.svg" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FA icon cho spinner / alerts -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+
+  <style>
+    /* Ẩn body để tránh “nháy” khi đang kiểm tra auth */
+    html,body{height:100%}
+    body{visibility:hidden}
+
+    :root{ --bg:#0b1020; --bg-soft:#11162a; --card:#121a33; --text:#e7ecf7; --muted:#a8b2d1; --primary:#7aa2ff; --primary-strong:#5a86ff; --ok:#22c55e; --err:#ef4444; --border:rgba(255,255,255,.08); --shadow:0 10px 30px rgba(0,0,0,.25); }
+    @media (prefers-color-scheme: light){
+      :root{ --bg:#f6f8fa; --bg-soft:#eef1f6; --card:#ffffff; --text:#111827; --muted:#6b7280; --primary:#2563eb; --primary-strong:#1e40af; --ok:#16a34a; --err:#dc2626; --border:rgba(0,0,0,.08); --shadow:0 10px 30px rgba(0,0,0,.08); }
+    }
+    :root[data-theme="light"]{ --bg:#f6f8fa; --bg-soft:#eef1f6; --card:#ffffff; --text:#111827; --muted:#6b7280; --primary:#2563eb; --primary-strong:#1e40af; --ok:#16a34a; --err:#dc2626; --border:rgba(0,0,0,.08); --shadow:0 10px 30px rgba(0,0,0,.08); }
+    :root[data-theme="dark"]{ --bg:#0b1020; --bg-soft:#11162a; --card:#121a33; --text:#e7ecf7; --muted:#a8b2d1; --primary:#7aa2ff; --primary-strong:#5a86ff; --ok:#22c55e; --err:#ef4444; --border:rgba(255,255,255,.08); --shadow:0 10px 30px rgba(0,0,0,.25); }
+
+    body{
+      margin:0; color:var(--text);
+      font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(122,162,255,.18), transparent 60%),
+        radial-gradient(900px 500px at 110% 10%, rgba(125,211,252,.16), transparent 60%),
+        var(--bg);
+    }
+    .card{ background:var(--card); color:var(--text); border:1px solid var(--border); border-radius:18px; box-shadow:var(--shadow); }
+    .btn{ appearance:none; border:none; cursor:pointer; background:var(--primary); color:#fff; font-weight:700; padding:10px 14px; border-radius:12px; transition:transform .12s ease, background .2s ease; box-shadow:0 6px 18px rgba(37,99,235,.25); display:inline-flex; align-items:center; gap:8px; justify-content:center; width:100%; text-decoration:none; }
+    .btn:hover{ transform:translateY(-1px); background:var(--primary-strong); }
+    .btn.secondary{ background:transparent; color:var(--text); border:1px solid var(--border); box-shadow:none; width:auto; }
+    .btn.secondary:hover{ background:var(--bg-soft); }
+    .input{ width:100%; padding:10px 12px; border-radius:12px; background:var(--card); color:var(--text); border:1px solid var(--border); outline:none; }
+    .muted{ color:var(--muted); }
+    .topbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+    .logo{ width:36px; height:36px; border-radius:12px; display:grid; place-items:center; background:linear-gradient(135deg,var(--primary),#60a5fa); box-shadow:var(--shadow); }
+    .icon{ width:18px; height:18px; object-fit:contain; display:inline-block; vertical-align:middle; }
+    #guestBtn{ width:100%; display:flex; align-items:center; justify-content:center; }
+  </style>
+</head>
+<body>
+  <main class="max-w-md mx-auto p-5 min-h-screen flex items-center">
+    <div class="w-full">
+      <div class="topbar">
+        <div class="flex items-center gap-3">
+          <div class="logo">
+            <img src="assets/login.svg" class="icon" alt="key">
+          </div>
+          <div>
+            <h1 class="text-lg font-extrabold">Đăng nhập</h1>
+            <div class="text-xs muted" id="status">Tiếp tục hành trình của bạn</div>
+          </div>
+        </div>
+        <button class="btn secondary" id="themeBtn" title="Đổi giao diện">
+          <img id="themeIcon" src="assets/theme-light.svg" class="icon" alt="theme">
+        </button>
+      </div>
+
+      <section class="card p-5">
+        <form id="login-form" class="space-y-4">
+          <div>
+            <label class="text-sm muted block mb-1">
+              <img src="assets/mail.svg" class="icon" alt="email"> Email
+            </label>
+            <input id="email" type="email" required class="input" autocomplete="username" />
+          </div>
+          <div>
+            <label class="text-sm muted block mb-1">
+              <img src="assets/lock.svg" class="icon" alt="password"> Mật khẩu
+            </label>
+            <input id="password" type="password" minlength="6" required class="input" autocomplete="current-password" />
+          </div>
+          <button id="login-btn" type="submit" class="btn">
+            <img src="assets/sign-in.svg" class="icon" alt="login"> Đăng nhập
+          </button>
+        </form>
+
+        <div class="mt-4">
+          <button id="guestBtn" onclick="continueAsGuest()" class="btn secondary">
+            <img src="assets/user.svg" class="icon" alt="guest"> Tiếp tục với tư cách khách
+          </button>
+        </div>
+
+        <p class="mt-4 text-center flex items-center justify-content-center gap-2 flex-wrap">
+          <a class="btn secondary" href="forgot-password.html">
+            <img src="assets/help.svg" class="icon" alt="forgot"> Quên mật khẩu?
+          </a>
+          <span class="mx-2 muted">|</span>
+          <a class="btn secondary" href="signup.html">
+            <img src="assets/user-plus.svg" class="icon" alt="signup"> Đăng ký
+          </a>
+        </p>
+      </section>
+    </div>
+  </main>
+
+  <!-- Modal thông báo -->
+  <div id="notification-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="card w-full max-w-sm mx-auto mt-28 p-6 text-center">
+      <i id="notification-icon" class="text-5xl mb-4"></i>
+      <h2 id="notification-title" class="text-xl font-semibold mb-3"></h2>
+      <p id="notification-message" class="muted mb-5"></p>
+      <button onclick="closeModal('notification-modal')" class="btn">Đóng</button>
+    </div>
+  </div>
+
+  <!-- Firebase compat -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+
+  <!-- ThemeManager + đồng bộ favicon/icon -->
+  <script>
+    (function(){
+      var ThemeManager;
+      const LS_KEY='voucher-theme', root=document.documentElement;
+      let currentTheme=null;
+      const getSystemPref=()=> (window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
+      function dispatchChange(theme){try{window.dispatchEvent(new CustomEvent('themechange',{detail:{theme}}))}catch{}}
+      function applyTheme(t){currentTheme=t; root.setAttribute('data-theme',t); dispatchChange(t);}
+      function saveToLocal(t){localStorage.setItem(LS_KEY,t);}
+
+      (function(){ const ls=localStorage.getItem(LS_KEY); applyTheme(ls||getSystemPref()); })();
+      document.getElementById('themeBtn')?.addEventListener('click', ()=> ThemeManager?.toggle());
+
+      ThemeManager = {
+        getTheme(){ return currentTheme || root.getAttribute('data-theme') || getSystemPref(); },
+        setTheme(t){ if(t!=='light'&&t!=='dark') return; applyTheme(t); saveToLocal(t); },
+        toggle(){ const cur=this.getTheme(); this.setTheme(cur==='dark'?'light':'dark'); }
+      };
+      window.ThemeManager = ThemeManager;
+
+      function applyAssets(mode){
+        const themeIcon = document.getElementById('themeIcon');
+        const fav = document.getElementById('favicon');
+        if(themeIcon){ themeIcon.src = mode==='dark' ? 'assets/theme-dark.svg' : 'assets/theme-light.svg'; }
+        if(fav){
+          fav.href = mode==='dark' ? 'assets/favicon-dark.svg' : 'assets/favicon-light.svg';
+          fav.href = fav.href.split('?')[0] + '?v=' + Date.now();
+        }
+      }
+      applyAssets(ThemeManager.getTheme());
+      window.addEventListener('themechange', e=> applyAssets(e.detail.theme));
+    })();
+  </script>
+
+  <script>
+    // Firebase
+    const firebaseConfig={apiKey:"AIzaSyDOhTKHU4P3jJ7aTkvSiewNoHu1_KXkcrU",authDomain:"loginandsignin-4932b.firebaseapp.com",projectId:"loginandsignin-4932b",storageBucket:"loginandsignin-4932b.appspot.com",messagingSenderId:"863133586719",appId:"1:863133586719:web:81eb32db8e08e8d89e8c2a"};
+    firebase.initializeApp(firebaseConfig);
+    const auth=firebase.auth();
+
+    // Kiểm tra trạng thái đăng nhập:
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        // đã đăng nhập -> chuyển thẳng đến quiz
+        location.replace('quiz_ai_assistant_app.html');
+      } else {
+        // chưa đăng nhập -> hiển thị trang
+        document.body.style.visibility = 'visible';
+      }
+    });
+
+    // Modal helpers
+    function showNotification(title,message,type='success'){
+      const m=document.getElementById('notification-modal');
+      document.getElementById('notification-title').textContent=title;
+      document.getElementById('notification-message').textContent=message;
+      document.getElementById('notification-icon').className =
+        `text-5xl mb-4 ${type==='success'?'fas fa-check-circle text-green-500':'fas fa-exclamation-circle text-red-500'}`;
+      m.classList.remove('hidden');
+    }
+    function closeModal(id){document.getElementById(id).classList.add('hidden');}
+
+    document.getElementById('login-form').addEventListener('submit', async e=>{
+      e.preventDefault();
+      const btn=document.getElementById('login-btn');
+      btn.disabled=true;
+      btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+      const email=document.getElementById('email').value.trim();
+      const password=document.getElementById('password').value;
+
+      try{
+        await auth.signInWithEmailAndPassword(email,password);
+        showNotification('Thành công!','Đăng nhập thành công! Đang chuyển hướng...','success');
+        setTimeout(()=>location.replace('quiz_ai_assistant_app.html'), 1200);
+      }catch(error){
+        showNotification('Lỗi','Lỗi đăng nhập: '+error.message,'error');
+      }finally{
+        btn.disabled=false;
+        btn.innerHTML='<img src="assets/sign-in.svg" class="icon" alt="login"> Đăng nhập';
+        // Nếu có lỗi (chưa redirect), đảm bảo body hiện
+        document.body.style.visibility = 'visible';
+      }
+    });
+
+    function continueAsGuest(){ location.href='quiz_ai_assistant_app.html'; }
+
+    // Đóng modal khi click nền hoặc nhấn ESC
+    document.addEventListener('click',e=>{const m=document.getElementById('notification-modal'); if(e.target===m) closeModal('notification-modal');});
+    document.addEventListener('keydown',e=>{const m=document.getElementById('notification-modal'); if(e.key==='Escape' && !m.classList.contains('hidden')) closeModal('notification-modal');});
+  </script>
+
+  <!-- ===== Username Validator (chặn Unicode, chỉ ASCII) ===== -->
+  <script>
+    (function UsernameValidatorInit(){
+      const NO_UNICODE_RE = /^[\x20-\x7E]+$/;
+      const USERNAME_ASCII_RE = /^(?!.*\.\.)(?!.*__)(?!.*--)[A-Za-z0-9](?:[A-Za-z0-9._-]{0,28}[A-Za-z0-9])$/;
+      function validateUsernameValue(val){
+        const s = (val||"").trim();
+        if(!NO_UNICODE_RE.test(s)) return { ok:false, msg:"Chỉ cho phép ASCII, không ký tự Unicode." };
+        if(!USERNAME_ASCII_RE.test(s)) return { ok:false, msg:"2–30 ký tự: A–Z a–z 0–9 . _ -, không đầu/cuối bằng . _ -, không có .. __ --" };
+        return { ok:true, msg:"" };
+      }
+      function attach(el){
+        if(!el || el._usernameValidatorBound) return;
+        el._usernameValidatorBound = true;
+        el.setAttribute("autocomplete","username");
+        el.setAttribute("spellcheck","false");
+        el.setAttribute("autocapitalize","off");
+        el.setAttribute("minlength","2");
+        el.setAttribute("maxlength","30");
+        el.addEventListener("input", () => {
+          const {ok, msg} = validateUsernameValue(el.value);
+          el.setCustomValidity(ok ? "" : msg);
+          el.reportValidity();
+        });
+        el.form?.addEventListener("submit", (e) => {
+          const {ok, msg} = validateUsernameValue(el.value);
+          if(!ok){ e.preventDefault(); el.setCustomValidity(msg); el.reportValidity(); el.focus(); }
+          else { el.setCustomValidity(""); }
+        });
+      }
+      document.querySelectorAll('input[name="username"], [data-username]').forEach(attach);
+      const obs = new MutationObserver((mutations)=>{
+        mutations.forEach(m=>{
+          m.addedNodes.forEach(node=>{
+            if(!(node instanceof Element)) return;
+            if(node.matches?.('input[name="username"], [data-username]')) attach(node);
+            node.querySelectorAll?.('input[name="username"], [data-username]').forEach(attach);
+          });
+        });
+      });
+      obs.observe(document.documentElement, {childList:true, subtree:true});
+      window.UsernameValidator = { validateRaw:(v)=>validateUsernameValue(v), regex:{NO_UNICODE_RE, USERNAME_ASCII_RE}, attach };
+    })();
+  </script>
+</body>
+</html>
