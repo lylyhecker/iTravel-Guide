@@ -9,11 +9,9 @@
   <link id="favicon" rel="icon" type="image/svg+xml" href="assets/favicon-light.svg" />
 
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FA icon cho spinner / alerts -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 
   <style>
-    /* Ẩn body để tránh “nháy” khi đang kiểm tra auth */
     html,body{height:100%}
     body{visibility:hidden}
 
@@ -43,6 +41,8 @@
     .logo{ width:36px; height:36px; border-radius:12px; display:grid; place-items:center; background:linear-gradient(135deg,var(--primary),#60a5fa); box-shadow:var(--shadow); }
     .icon{ width:18px; height:18px; object-fit:contain; display:inline-block; vertical-align:middle; }
     #guestBtn{ width:100%; display:flex; align-items:center; justify-content:center; }
+    .sso { display:grid; grid-template-columns: 1fr; gap:8px; }
+    .sso .btn { width:100% }
   </style>
 </head>
 <body>
@@ -64,6 +64,7 @@
       </div>
 
       <section class="card p-5">
+        <!-- Email / password -->
         <form id="login-form" class="space-y-4">
           <div>
             <label class="text-sm muted block mb-1">
@@ -81,6 +82,14 @@
             <img src="assets/sign-in.svg" class="icon" alt="login"> Đăng nhập
           </button>
         </form>
+
+        <!-- Hoặc đăng nhập nhanh bằng SSO -->
+        <div class="my-4 text-center muted">— hoặc —</div>
+        <div class="sso">
+          <button id="googleBtn" class="btn secondary"><i class="fa-brands fa-google"></i> Đăng nhập bằng Google</button>
+          <button id="githubBtn" class="btn secondary"><i class="fa-brands fa-github"></i> Đăng nhập bằng GitHub</button>
+          <button id="microsoftBtn" class="btn secondary"><i class="fa-brands fa-microsoft"></i> Đăng nhập bằng Microsoft</button>
+        </div>
 
         <div class="mt-4">
           <button id="guestBtn" onclick="continueAsGuest()" class="btn secondary">
@@ -115,7 +124,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 
-  <!-- ThemeManager + đồng bộ favicon/icon -->
+  <!-- ThemeManager -->
   <script>
     (function(){
       var ThemeManager;
@@ -156,16 +165,8 @@
     firebase.initializeApp(firebaseConfig);
     const auth=firebase.auth();
 
-    // Kiểm tra trạng thái đăng nhập:
-    auth.onAuthStateChanged(user => {
-      if (user) {
-        // đã đăng nhập -> chuyển thẳng đến quiz
-        location.replace('quiz_ai_assistant_app.html');
-      } else {
-        // chưa đăng nhập -> hiển thị trang
-        document.body.style.visibility = 'visible';
-      }
-    });
+    // Redirect target
+    const RET = new URLSearchParams(location.search).get('returnTo') || 'quiz_ai_assistant_app.html';
 
     // Modal helpers
     function showNotification(title,message,type='success'){
@@ -178,6 +179,7 @@
     }
     function closeModal(id){document.getElementById(id).classList.add('hidden');}
 
+    // Đăng nhập email/password (giữ nguyên)
     document.getElementById('login-form').addEventListener('submit', async e=>{
       e.preventDefault();
       const btn=document.getElementById('login-btn');
@@ -189,67 +191,75 @@
       try{
         await auth.signInWithEmailAndPassword(email,password);
         showNotification('Thành công!','Đăng nhập thành công! Đang chuyển hướng...','success');
-        setTimeout(()=>location.replace('quiz_ai_assistant_app.html'), 1200);
+        setTimeout(()=>location.replace(RET), 900);
       }catch(error){
         showNotification('Lỗi','Lỗi đăng nhập: '+error.message,'error');
+        document.body.style.visibility='visible';
       }finally{
         btn.disabled=false;
         btn.innerHTML='<img src="assets/sign-in.svg" class="icon" alt="login"> Đăng nhập';
-        // Nếu có lỗi (chưa redirect), đảm bảo body hiện
-        document.body.style.visibility = 'visible';
       }
     });
 
-    function continueAsGuest(){ location.href='quiz_ai_assistant_app.html'; }
+    // SSO providers
+    const googleProvider   = new firebase.auth.GoogleAuthProvider();
+    const githubProvider   = new firebase.auth.GithubAuthProvider();
+    const microsoftProvider= new firebase.auth.OAuthProvider('microsoft.com');
+
+    // scope gợi ý (có thể bớt/đổi)
+    githubProvider.addScope('user:email');
+    microsoftProvider.setCustomParameters({ prompt: 'select_account' });
+    // microsoftProvider.addScope('User.Read'); // nếu cần
+
+    async function signInWithProvider(providerName){
+      const btn = document.getElementById(providerName+'Btn');
+      if(btn){ btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang mở ' + providerName + '…'; }
+      const provider =
+        providerName==='google'   ? googleProvider :
+        providerName==='github'   ? githubProvider :
+        providerName==='microsoft'? microsoftProvider : null;
+      if(!provider) return;
+
+      try{
+        // Popup trước, nếu bị chặn sẽ fallback redirect
+        await auth.signInWithPopup(provider);
+        location.replace(RET);
+      }catch(err){
+        // Một số trình duyệt/mobile chặn popup
+        if(err && /popup/i.test(err.message||'')){
+          try{
+            await auth.signInWithRedirect(provider);
+          }catch(e2){
+            showNotification('Lỗi', 'Không thể mở xác thực: '+(e2.message||e2), 'error');
+          }
+        }else{
+          showNotification('Lỗi', (err?.message || err), 'error');
+        }
+      }finally{
+        if(btn){ btn.disabled=false;
+          const label = providerName==='google'?'Đăng nhập bằng Google':providerName==='github'?'Đăng nhập bằng GitHub':'Đăng nhập bằng Microsoft';
+          btn.innerHTML = (providerName==='google' ? '<i class="fa-brands fa-google"></i> ' :
+                           providerName==='github' ? '<i class="fa-brands fa-github"></i> ' :
+                           '<i class="fa-brands fa-microsoft"></i> ') + label;
+        }
+      }
+    }
+
+    document.getElementById('googleBtn').addEventListener('click', ()=> signInWithProvider('google'));
+    document.getElementById('githubBtn').addEventListener('click', ()=> signInWithProvider('github'));
+    document.getElementById('microsoftBtn').addEventListener('click', ()=> signInWithProvider('microsoft'));
+
+    function continueAsGuest(){ location.href = RET; }
+
+    // Khi đã đăng nhập thì tự vào RET
+    auth.onAuthStateChanged(user => {
+      if (user) location.replace(RET);
+      else document.body.style.visibility='visible';
+    });
 
     // Đóng modal khi click nền hoặc nhấn ESC
     document.addEventListener('click',e=>{const m=document.getElementById('notification-modal'); if(e.target===m) closeModal('notification-modal');});
     document.addEventListener('keydown',e=>{const m=document.getElementById('notification-modal'); if(e.key==='Escape' && !m.classList.contains('hidden')) closeModal('notification-modal');});
-  </script>
-
-  <!-- ===== Username Validator (chặn Unicode, chỉ ASCII) ===== -->
-  <script>
-    (function UsernameValidatorInit(){
-      const NO_UNICODE_RE = /^[\x20-\x7E]+$/;
-      const USERNAME_ASCII_RE = /^(?!.*\.\.)(?!.*__)(?!.*--)[A-Za-z0-9](?:[A-Za-z0-9._-]{0,28}[A-Za-z0-9])$/;
-      function validateUsernameValue(val){
-        const s = (val||"").trim();
-        if(!NO_UNICODE_RE.test(s)) return { ok:false, msg:"Chỉ cho phép ASCII, không ký tự Unicode." };
-        if(!USERNAME_ASCII_RE.test(s)) return { ok:false, msg:"2–30 ký tự: A–Z a–z 0–9 . _ -, không đầu/cuối bằng . _ -, không có .. __ --" };
-        return { ok:true, msg:"" };
-      }
-      function attach(el){
-        if(!el || el._usernameValidatorBound) return;
-        el._usernameValidatorBound = true;
-        el.setAttribute("autocomplete","username");
-        el.setAttribute("spellcheck","false");
-        el.setAttribute("autocapitalize","off");
-        el.setAttribute("minlength","2");
-        el.setAttribute("maxlength","30");
-        el.addEventListener("input", () => {
-          const {ok, msg} = validateUsernameValue(el.value);
-          el.setCustomValidity(ok ? "" : msg);
-          el.reportValidity();
-        });
-        el.form?.addEventListener("submit", (e) => {
-          const {ok, msg} = validateUsernameValue(el.value);
-          if(!ok){ e.preventDefault(); el.setCustomValidity(msg); el.reportValidity(); el.focus(); }
-          else { el.setCustomValidity(""); }
-        });
-      }
-      document.querySelectorAll('input[name="username"], [data-username]').forEach(attach);
-      const obs = new MutationObserver((mutations)=>{
-        mutations.forEach(m=>{
-          m.addedNodes.forEach(node=>{
-            if(!(node instanceof Element)) return;
-            if(node.matches?.('input[name="username"], [data-username]')) attach(node);
-            node.querySelectorAll?.('input[name="username"], [data-username]').forEach(attach);
-          });
-        });
-      });
-      obs.observe(document.documentElement, {childList:true, subtree:true});
-      window.UsernameValidator = { validateRaw:(v)=>validateUsernameValue(v), regex:{NO_UNICODE_RE, USERNAME_ASCII_RE}, attach };
-    })();
   </script>
 </body>
 </html>
