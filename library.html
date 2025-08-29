@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Thư viện Voucher</title>
+
+  <!-- Tailwind chỉ dùng layout/spacing -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Favicon (ThemeManager sẽ đổi) -->
+  <link id="favicon" rel="icon" type="image/svg+xml" href="assets/favicon-light.svg">
+
+  <style>
+    /* ========= THEME (y hệt quiz) ========= */
+    :root{
+      --bg:#0b1020; --bg-soft:#11162a; --card:#121a33; --text:#e7ecf7; --muted:#a8b2d1;
+      --primary:#7aa2ff; --primary-strong:#5a86ff; --ok:#22c55e; --err:#ef4444;
+      --border:rgba(255,255,255,.08); --shadow:0 10px 30px rgba(0,0,0,.25);
+    }
+    @media (prefers-color-scheme: light){
+      :root{ --bg:#f6f8fa; --bg-soft:#eef1f6; --card:#ffffff; --text:#111827; --muted:#6b7280; --primary:#2563eb; --primary-strong:#1e40af; --ok:#16a34a; --err:#dc2626; --border:rgba(0,0,0,.08); --shadow:0 10px 30px rgba(0,0,0,.08); }
+    }
+    :root[data-theme="light"]{ --bg:#f6f8fa; --bg-soft:#eef1f6; --card:#ffffff; --text:#111827; --muted:#6b7280; --primary:#2563eb; --primary-strong:#1e40af; --ok:#16a34a; --err:#dc2626; --border:rgba(0,0,0,.08); --shadow:0 10px 30px rgba(0,0,0,.08); }
+    :root[data-theme="dark"]{ --bg:#0b1020; --bg-soft:#11162a; --card:#121a33; --text:#e7ecf7; --muted:#a8b2d1; --primary:#7aa2ff; --primary-strong:#5a86ff; --ok:#22c55e; --err:#ef4444; --border:rgba(255,255,255,.08); --shadow:0 10px 30px rgba(0,0,0,.25); }
+
+    html,body{height:100%}
+    body{
+      margin:0; color:var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Inter, Roboto, Arial;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, rgba(122,162,255,.18), transparent 60%),
+        radial-gradient(900px 500px at 110% 10%, rgba(125,211,252,.16), transparent 60%),
+        var(--bg);
+    }
+
+    .card{ background: var(--card); border:1px solid var(--border); border-radius:18px; box-shadow: var(--shadow); }
+    .icon { width: 18px; height: 18px; object-fit: contain; display:inline-block }
+    .muted{ color: var(--muted); }
+
+    .btn{
+      appearance:none; border:none; cursor:pointer;
+      background: var(--primary); color:white; font-weight:700;
+      padding:10px 14px; border-radius:12px;
+      transition: transform .12s ease, background .2s ease;
+      box-shadow: 0 6px 18px rgba(37,99,235,.25);
+      text-decoration:none; display:inline-flex; align-items:center; gap:8px;
+    }
+    .btn:hover{ transform: translateY(-1px); background: var(--primary-strong); }
+    .btn.secondary{ background: transparent; color: var(--text); border:1px solid var(--border); box-shadow:none; }
+    .btn.secondary:hover{ background: var(--bg-soft); }
+
+    .badge{ border:1px solid var(--border); border-radius:999px; padding:4px 10px; font-size:12px; color:var(--muted); background: var(--bg-soft) }
+
+    /* 🔒 Trạng thái disable cho voucher đã dùng/hết hạn */
+    .is-disabled{
+      opacity: .55;
+      filter: grayscale(.3);
+    }
+    .btn[disabled], .btn.disabled, a.btn.disabled{
+      pointer-events: none !important;
+      opacity: .6;
+      cursor: not-allowed !important;
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header shadow-md">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl ring-1 ring-white/10 grid place-items-center" style="background:linear-gradient(135deg,var(--primary),#60a5fa)"><img src="assets/book.svg" class="icon" alt=""></div>
+        <div>
+          <h1 class="text-lg font-extrabold">Thư viện Voucher</h1>
+          <div class="text-xs muted" id="status">Đang tải...</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 flex-wrap">
+        <a class="btn secondary" href="redeem.html"><img src="assets/gift.svg" class="icon" alt=""> Đổi quà</a>
+        <button class="btn secondary" id="themeBtn" title="Đổi giao diện"><img id="themeIcon" class="icon" alt=""></button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6">
+    <section class="card p-5">
+      <div class="flex items-center gap-3 justify-between flex-wrap mb-3">
+        <h2 class="text-xl font-bold flex items-center gap-2"><img src="assets/voucher.svg" class="icon" alt=""> <span>Voucher của bạn</span></h2>
+        <div class="flex gap-2">
+          <input id="q" class="px-3 py-2 rounded-lg border" style="background:var(--card);color:var(--text);border-color:var(--border)" placeholder="Tìm theo tên quà...">
+          <button id="clearBtn" class="btn secondary">Xoá</button>
+        </div>
+      </div>
+
+      <div id="list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="h-28 rounded-xl" style="background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(255,255,255,.12),rgba(255,255,255,.06));animation:pulse 1.2s infinite"></div>
+        <div class="h-28 rounded-xl" style="background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(255,255,255,.12),rgba(255,255,255,.06));animation:pulse 1.2s infinite"></div>
+        <div class="h-28 rounded-xl" style="background:linear-gradient(90deg,rgba(255,255,255,.06),rgba(255,255,255,.12),rgba(255,255,255,.06));animation:pulse 1.2s infinite"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <div class="max-w-6xl mx-auto px-4 py-4 text-center text-sm muted">
+      © 2025 Quiz & Assistant Web — Design by Mr.Hecker
+    </div>
+  </footer>
+
+  <!-- Firebase v8 (giữ như trước) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
+  <!-- ThemeManager v2.1 -->
+  <script>
+  (function ThemeManager_v21(){
+    const root=document.documentElement; const LS='voucher-theme';
+    const sys=()=> (matchMedia && matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
+    function apply(t){ root.setAttribute('data-theme', t); dispatchEvent(new CustomEvent('themechange',{detail:{theme:t}})); }
+    (function init(){ apply(localStorage.getItem(LS) || sys()); })();
+    document.getElementById('themeBtn')?.addEventListener('click',()=>window.ThemeManager?.toggle());
+    window.ThemeManager={ getTheme(){return root.getAttribute('data-theme')||sys();}, setTheme(t){ if(t!=='light'&&t!=='dark')return; apply(t); localStorage.setItem(LS,t); }, toggle(){ this.setTheme(this.getTheme()==='dark'?'light':'dark'); } };
+    const fav=document.getElementById('favicon'); const icon=document.getElementById('themeIcon');
+    function assets(mode){ if(icon){icon.src=mode==='dark'?'assets/theme-dark.svg':'assets/theme-light.svg'; icon.alt=mode==='dark'?'Dark':'Light';} if(fav){fav.href=mode==='dark'?'assets/favicon-dark.svg':'assets/favicon-light.svg'; fav.href=fav.href.split('?')[0]+'?v='+Date.now();}}
+    assets(window.ThemeManager.getTheme()); addEventListener('themechange',e=>assets(e.detail.theme));
+  })();
+  </script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDOhTKHU4P3jJ7aTkvSiewNoHu1_KXkcrU",
+      authDomain: "loginandsignin-4932b.firebaseapp.com",
+      projectId: "loginandsignin-4932b",
+      storageBucket: "loginandsignin-4932b.appspot.com",
+      messagingSenderId: "863133586719",
+      appId: "1:863133586719:web:81eb32db8e08e8d89e8c2a"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db   = firebase.firestore();
+
+    const statusEl = document.getElementById('status');
+    const listEl = document.getElementById('list');
+    const q = document.getElementById('q');
+    const clearBtn = document.getElementById('clearBtn');
+
+    let allDocs = [];
+
+    const asDate = (v) => (v && typeof v.toDate === 'function') ? v.toDate() : (v ? new Date(v) : null);
+
+    function computeExpiry(v){
+      const expiresAt = asDate(v.expiresAt) || asDate(v.expiry);
+      if (expiresAt) return expiresAt;
+      const base = asDate(v.issuedAt) || asDate(v.createdAt) || asDate(v.redeemedAt) || new Date();
+      const days = Number(v.validDays || 7);
+      return new Date(base.getTime() + days*86400000);
+    }
+
+    async function backfillExpiresIfOwner(col, id, v, uid){
+      if (v.expiresAt) return;
+      if (!v.ownerUid || v.ownerUid !== uid) return;
+      try{
+        const base = asDate(v.issuedAt) || asDate(v.createdAt) || new Date();
+        const days = Number(v.validDays || 7);
+        const exp = new Date(base.getTime() + days*86400000);
+        await db.collection(col).doc(id).set({ expiresAt: firebase.firestore.Timestamp.fromDate(exp) }, { merge:true });
+      }catch{}
+    }
+
+    /* ➕ Thêm status/used để quyết định disable */
+    function toCardModel(col, id, v){
+      const giftName = v.giftName || v.gift || 'Không rõ';
+      const expiry = computeExpiry(v);
+      const expired = expiry ? (expiry.getTime() < Date.now()) : false;
+      const status = (v.status || '').toLowerCase();
+      const used = status === 'used';
+      return { id, col, giftName, expiry, expired, status, used };
+    }
+
+    function dedupById(arr){
+      const m = new Map();
+      for (const x of arr) if (!m.has(x.id)) m.set(x.id, x);
+      return Array.from(m.values());
+    }
+
+    async function fetchOwned(uid){ const s=await db.collection('vouchers').where('ownerUid','==',uid).get(); return s.docs.map(d=>({col:'vouchers',id:d.id,data:d.data()})); }
+    async function fetchShared(uid){ const s=await db.collection('vouchers').where('allowedUids','array-contains',uid).get(); return s.docs.map(d=>({col:'vouchers',id:d.id,data:d.data()})); }
+    async function fetchOwnedLegacy(uid){ try{ const s=await db.collection('voucher').where('ownerUid','==',uid).get(); return s.docs.map(d=>({col:'voucher',id:d.id,data:d.data()})); }catch{return []} }
+    async function fetchSharedLegacy(uid){ try{ const s=await db.collection('voucher').where('allowedUids','array-contains',uid).get(); return s.docs.map(d=>({col:'voucher',id:d.id,data:d.data()})); }catch{return []} }
+    async function fetchOwnedByUid(uid){ const s=await db.collection('vouchers').where('uid','==',uid).get(); return s.docs.map(d=>({col:'vouchers',id:d.id,data:d.data()})); }
+    async function fetchOwnedByUidLegacy(uid){ try{ const s=await db.collection('voucher').where('uid','==',uid).get(); return s.docs.map(d=>({col:'voucher',id:d.id,data:d.data()})); }catch{return []} }
+
+    async function fetchFromRedeemLogs(uid){
+      try{
+        const logs = await db.collection('redeem_logs').where('uid','==',uid).get();
+        const vIds = Array.from(new Set(logs.docs.map(d => d.data()?.voucherId).filter(Boolean)));
+        const results = [];
+        for (const id of vIds){
+          try{
+            let snap = await db.collection('vouchers').doc(id).get();
+            let col = 'vouchers';
+            if (!snap.exists){
+              const legacy = await db.collection('voucher').doc(id).get();
+              if (!legacy.exists) continue;
+              snap = legacy; col = 'voucher';
+            }
+            results.push({ col, id, data: snap.data() });
+          }catch{}
+        }
+        return results;
+      }catch{ return []; }
+    }
+
+    /* 🔧 Render: disable & bôi xám nếu used/expired */
+    function render(data){
+      listEl.innerHTML = '';
+      if (!data.length){
+        listEl.innerHTML = `<div class="card p-4 text-center muted">Không có voucher nào.</div>`;
+        return;
+      }
+      data.sort((a,b) => (a.expiry?.getTime()||9e15) - (b.expiry?.getTime()||9e15));
+      for (const item of data){
+        const isDisabled = item.used || item.expired;
+        const badgeText = item.used ? 'Đã dùng' : (item.expired ? 'Hết hạn' : 'Còn hạn');
+
+        const card = document.createElement('div');
+        card.className = 'card p-4 flex flex-col gap-2' + (isDisabled ? ' is-disabled' : '');
+        card.innerHTML = `
+          <div class="flex justify-between items-center">
+            <h3 class="font-bold text-base">${item.giftName}</h3>
+            <span class="badge">${badgeText}</span>
+          </div>
+          <div class="muted text-sm">Hết hạn: ${item.expiry ? item.expiry.toLocaleString('vi-VN') : 'Không có thông tin'}</div>
+          <div class="flex gap-2 mt-1">
+            ${isDisabled
+              ? `
+                <a class="btn secondary disabled" aria-disabled="true" tabindex="-1">Chi tiết</a>
+                <button class="btn" disabled>Sử dụng</button>
+              `
+              : `
+                <a class="btn secondary" href="voucher.html?id=${encodeURIComponent(item.id)}">Chi tiết</a>
+                <a class="btn" href="voucher.html?id=${encodeURIComponent(item.id)}">Sử dụng</a>
+              `
+            }
+          </div>
+        `;
+        listEl.appendChild(card);
+      }
+    }
+
+    auth.onAuthStateChanged(async user => {
+      if (!user) {
+        statusEl.innerHTML = 'Bạn cần <a class="btn secondary" href="login.html">đăng nhập</a> để xem.';
+        listEl.innerHTML = '';
+        return;
+      }
+      statusEl.textContent = 'Đang tải voucher...';
+
+      try {
+        const [own, shared, ownOld, sharedOld, ownByUid, ownByUidOld, fromLogs] = await Promise.all([
+          fetchOwned(user.uid),
+          fetchShared(user.uid),
+          fetchOwnedLegacy(user.uid),
+          fetchSharedLegacy(user.uid),
+          fetchOwnedByUid(user.uid),        // fallback uid
+          fetchOwnedByUidLegacy(user.uid),  // legacy + uid
+          fetchFromRedeemLogs(user.uid)
+        ]);
+
+        const packs = dedupById([
+          ...own, ...shared, ...ownOld, ...sharedOld, ...ownByUid, ...ownByUidOld, ...fromLogs
+        ].map(x => ({ id:x.id, ...x })));
+
+        const models = [];
+        for (const p of packs){
+          const v = p.data || {};
+          try{ await backfillExpiresIfOwner(p.col, p.id, v, user.uid); }catch{}
+          models.push(toCardModel(p.col, p.id, v));
+        }
+
+        render(models);
+        statusEl.textContent = models.length ? `Có ${models.length} voucher` : 'Bạn chưa có voucher nào.';
+        allDocs = models;
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = 'Lỗi tải voucher: ' + (err.message || err);
+        listEl.innerHTML = '';
+      }
+    });
+
+    q.addEventListener('input', () => {
+      const kw = q.value.trim().toLowerCase();
+      if (!kw) return render(allDocs);
+      render(allDocs.filter(x => (x.giftName || '').toLowerCase().includes(kw)));
+    });
+    clearBtn.addEventListener('click', () => { q.value = ''; render(allDocs); q.focus(); });
+  </script>
+</body>
+</html>
