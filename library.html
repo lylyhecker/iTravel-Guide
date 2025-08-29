@@ -110,21 +110,6 @@
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
-  <!-- ThemeManager v2.1 -->
-  <script>
-  (function ThemeManager_v21(){
-    const root=document.documentElement; const LS='voucher-theme';
-    const sys=()=> (matchMedia && matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
-    function apply(t){ root.setAttribute('data-theme', t); dispatchEvent(new CustomEvent('themechange',{detail:{theme:t}})); }
-    (function init(){ apply(localStorage.getItem(LS) || sys()); })();
-    document.getElementById('themeBtn')?.addEventListener('click',()=>window.ThemeManager?.toggle());
-    window.ThemeManager={ getTheme(){return root.getAttribute('data-theme')||sys();}, setTheme(t){ if(t!=='light'&&t!=='dark')return; apply(t); localStorage.setItem(LS,t); }, toggle(){ this.setTheme(this.getTheme()==='dark'?'light':'dark'); } };
-    const fav=document.getElementById('favicon'); const icon=document.getElementById('themeIcon');
-    function assets(mode){ if(icon){icon.src=mode==='dark'?'assets/theme-dark.svg':'assets/theme-light.svg'; icon.alt=mode==='dark'?'Dark':'Light';} if(fav){fav.href=mode==='dark'?'assets/favicon-dark.svg':'assets/favicon-light.svg'; fav.href=fav.href.split('?')[0]+'?v='+Date.now();}}
-    assets(window.ThemeManager.getTheme()); addEventListener('themechange',e=>assets(e.detail.theme));
-  })();
-  </script>
-
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyDOhTKHU4P3jJ7aTkvSiewNoHu1_KXkcrU",
@@ -293,6 +278,91 @@
       render(allDocs.filter(x => (x.giftName || '').toLowerCase().includes(kw)));
     });
     clearBtn.addEventListener('click', () => { q.value = ''; render(allDocs); q.focus(); });
+  </script>
+
+  <!-- ThemeSync v3: đồng bộ theme theo tài khoản (giữ nguyên UI hiện có) -->
+  <script>
+  (function ThemeSyncV3(){
+    const LS_KEY='voucher-theme';
+    const root=document.documentElement;
+    const bc=('BroadcastChannel' in window)?new BroadcastChannel('theme-sync'):null;
+
+    let current=null, uid=null, unsubUser=null, suppressNext=false;
+
+    const getSystem=()=> (matchMedia && matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
+    function dispatchChange(theme){ try{window.dispatchEvent(new CustomEvent('themechange',{detail:{theme}}))}catch{} }
+    function applyTheme(t){
+      current=t;
+      t?root.setAttribute('data-theme',t):root.removeAttribute('data-theme');
+      // icon & favicon
+      const icon=document.getElementById('themeIcon');
+      if(icon){ icon.src = t==='dark'?'assets/theme-dark.svg':'assets/theme-light.svg'; icon.alt = t==='dark'?'Dark':'Light'; }
+      const fav=document.getElementById('favicon');
+      if(fav){ fav.href = t==='dark'?'assets/favicon-dark.svg':'assets/favicon-light.svg'; fav.href=fav.href.split('?')[0]+'?v='+Date.now(); }
+      dispatchChange(t);
+      if(bc) bc.postMessage({type:'theme-applied', theme:t});
+    }
+    function getLocal(){ try{return localStorage.getItem(LS_KEY)}catch{return null} }
+    function setLocal(t){ try{ localStorage.setItem(LS_KEY,t) }catch{} }
+
+    async function setRemoteTheme(t){
+      if(!uid) return;
+      suppressNext=true;
+      try{
+        await firebase.firestore().collection('users').doc(uid).set({
+          prefs:{ theme:t, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }
+        }, {merge:true});
+      }finally{
+        setTimeout(()=> suppressNext=false, 250);
+      }
+    }
+
+    // API để nút bấm gọi
+    window.ThemeManager={
+      getTheme(){ return current || root.getAttribute('data-theme') || getLocal() || getSystem(); },
+      async setTheme(t){ if(t!=='light'&&t!=='dark')return; applyTheme(t); setLocal(t); await setRemoteTheme(t); },
+      async toggle(){ const next=this.getTheme()==='dark'?'light':'dark'; await this.setTheme(next); }
+    };
+    document.getElementById('themeBtn')?.addEventListener('click', ()=> window.ThemeManager.toggle());
+
+    // Sync đa tab
+    if(bc){
+      bc.onmessage=(ev)=>{ if(ev?.data?.type==='theme-applied'){ const t=ev.data.theme; if(t && t!==current) applyTheme(t); } };
+    }
+
+    // Áp theme ban đầu (khách)
+    applyTheme(getLocal() || getSystem());
+
+    // Login → đồng bộ theo tài khoản
+    firebase.auth().onAuthStateChanged(async (user)=>{
+      if(unsubUser){ unsubUser(); unsubUser=null; }
+      uid = user?.uid || null;
+
+      if(!uid){ applyTheme(getLocal() || getSystem()); return; }
+
+      const userRef=firebase.firestore().collection('users').doc(uid);
+      const snap=await userRef.get();
+      let remoteTheme = snap.exists ? (snap.data()?.prefs?.theme || null) : null;
+
+      if(!remoteTheme){
+        remoteTheme = getLocal() || getSystem();
+        applyTheme(remoteTheme);
+        setLocal(remoteTheme);
+        await setRemoteTheme(remoteTheme);
+      }else{
+        setLocal(remoteTheme);
+        applyTheme(remoteTheme);
+      }
+
+      unsubUser = userRef.onSnapshot(s=>{
+        if(!s.exists) return;
+        const t=s.data()?.prefs?.theme;
+        if(!t) return;
+        if(suppressNext) return;
+        if(t!==current){ setLocal(t); applyTheme(t); }
+      });
+    });
+  })();
   </script>
 </body>
 </html>
