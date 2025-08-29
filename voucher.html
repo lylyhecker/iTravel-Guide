@@ -145,44 +145,50 @@
   <!-- QRCode.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-  <!-- ===== ThemeManager v2.1 (giống redeem, lưu Firestore) ===== -->
   <script>
-  (function ThemeManager_v21(){
-    const root=document.documentElement; let cur=null;
-    const LS_KEY='voucher-theme';
-    const sys=()=> (matchMedia && matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
+  /* ===================== Theme Sync (Firebase + BroadcastChannel) ===================== */
+  (function ThemeSync(){
+    const root=document.documentElement, LS_KEY='app-theme';
+    const btn=document.getElementById('themeBtn'), icon=document.getElementById('themeIcon'), fav=document.getElementById('favicon');
+    const bc = ('BroadcastChannel' in window)? new BroadcastChannel('theme-sync') : null;
+    let current=null, unsub=null, suppress=false;
 
-    function dispatch(t){ try{ dispatchEvent(new CustomEvent('themechange',{detail:{theme:t}})); }catch{} }
-    function apply(t){ cur=t; t?root.setAttribute('data-theme',t):root.removeAttribute('data-theme'); dispatch(t); }
-    function saveLS(t){ try{ localStorage.setItem(LS_KEY,t); }catch{} }
+    function applyTheme(t){
+      current=t; root.setAttribute('data-theme',t);
+      if(icon) icon.src = t==='dark'?'assets/theme-dark.svg':'assets/theme-light.svg';
+      if(fav){ fav.href = t==='dark'?'assets/favicon-dark.svg':'assets/favicon-light.svg'; fav.href=fav.href.split('?')[0]+'?v='+Date.now(); }
+      try{ localStorage.setItem(LS_KEY,t); }catch{}
+      if(bc) bc.postMessage({type:'theme-applied', theme:t});
+    }
+    const getSystem=()=> (matchMedia && matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
+    async function setRemoteTheme(t){
+      const u=auth.currentUser; if(!u) return; suppress=true;
+      try{
+        await db.collection('users').doc(u.uid).set({ prefs:{ theme:t, updatedAt: firebase.firestore.FieldValue.serverTimestamp() } },{merge:true});
+      }finally{ setTimeout(()=> suppress=false, 250); }
+    }
 
-    // init: ưu tiên LS, fallback system
-    (function init(){ apply(localStorage.getItem(LS_KEY) || sys()); })();
+    btn?.addEventListener('click', async()=>{
+      const next=(current||localStorage.getItem(LS_KEY)||getSystem())==='dark'?'light':'dark';
+      applyTheme(next); await setRemoteTheme(next);
+    });
 
-    // nút toggle
-    document.getElementById('themeBtn')?.addEventListener('click',()=>window.ThemeManager?.toggle());
+    applyTheme(localStorage.getItem(LS_KEY)||getSystem());
+    if(bc){ bc.onmessage=(ev)=>{ const t=ev?.data?.theme; if(t && t!==current) applyTheme(t); }; }
 
-    // public API
-    window.ThemeManager={
-      getTheme(){ return cur || root.getAttribute('data-theme') || sys(); },
-      async setTheme(t){
-        if(t!=='light'&&t!=='dark') return;
-        apply(t); saveLS(t);
-        try{
-          const u=firebase.auth().currentUser;
-          if(u){
-            await firebase.firestore().collection('users').doc(u.uid)
-              .set({ prefs:{ theme:t, updatedAt: firebase.firestore.FieldValue.serverTimestamp() } }, { merge:true });
-          }
-        }catch(e){ /* ignore */ }
-      },
-      async toggle(){ await this.setTheme(this.getTheme()==='dark'?'light':'dark'); }
-    };
-
-    // auto theo system nếu user chưa lưu tay (LS trống) – có thể bật nếu cần:
-    // matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{
-    //   if(!localStorage.getItem(LS_KEY)) apply(sys());
-    // });
+    auth.onAuthStateChanged(async (u)=>{
+      updateAuthUI(u);
+      if(unsub){ unsub(); unsub=null; }
+      if(!u){ applyTheme(localStorage.getItem(LS_KEY)||getSystem()); return; }
+      const ref=db.collection('users').doc(u.uid);
+      const snap=await ref.get();
+      const remote = snap.exists ? (snap.data()?.prefs?.theme || null) : null;
+      if(remote){ applyTheme(remote); try{ localStorage.setItem(LS_KEY,remote); }catch{} }
+      unsub = ref.onSnapshot(s=>{
+        if(!s.exists) return; const t=s.data()?.prefs?.theme; if(!t||suppress) return;
+        if(t!==current){ applyTheme(t); try{ localStorage.setItem(LS_KEY,t); }catch{} }
+      });
+    });
   })();
   </script>
 
