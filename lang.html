@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Seed Firestore i18n</title>
+  <!-- Firebase SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+</head>
+<body style="font-family:sans-serif; padding:20px">
+<h2>Seed Firestore i18n</h2>
+<p>Mở file này trong trình duyệt → nếu thành công sẽ hiện thông báo <b>Seeded!</b></p>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyDOhTKHU4P3jJ7aTkvSiewNoHu1_KXkcrU",
+  authDomain: "loginandsignin-4932b.firebaseapp.com",
+  projectId: "loginandsignin-4932b"
+};
+if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+(async () => {
+  const vi = {
+    "voucher": "Voucher",
+    "login": "Đăng nhập",
+    "logout": "Đăng xuất",
+
+    "choosePlace": "Chọn địa điểm",
+    "centerMap": "Đưa bản đồ tới điểm",
+    "myLocation": "Vị trí của tôi",
+    "distanceTo": "Khoảng cách tới điểm:",
+    "autoplayNear": "Tự phát khi ≤100m",
+
+    "subtitle": "Thuyết minh | Quiz (AI) | Map",
+    "introQuick": "Giới thiệu nhanh",
+    "tts": "Máy đọc thuyết minh",
+    "stop": "Dừng đọc",
+
+    "quizTitle": "Trắc nghiệm AI",
+    "quizHint": "Luôn gắn với địa điểm đang chọn, tránh lặp câu",
+    "createQuestion": "Tạo câu hỏi",
+    "end": "Kết thúc",
+
+    "selectAPlace": "Hãy chọn địa điểm.",
+    "creatingQuestionFor": "Đang tạo câu hỏi cho",
+    "createQuestionFailure": "Không tạo được câu phù hợp. Thử lại.",
+    "placeBadgeLabel": "Địa điểm:",
+    "questionCount": "Câu",
+    "correctNow": "Đúng hiện tại:",
+    "changeQuestion": "Đổi câu khác",
+    "ptsPerQ": "+",
+    "ptsPerQTail": "đ/câu",
+    "nextQuestion": "Câu tiếp",
+
+    "doneTitle": "Hoàn thành!",
+    "youCorrect": "Bạn đúng",
+    "youCorrectTail": "câu.",
+    "youGained": "Điểm thưởng vừa nhận:",
+    "seeVoucher": "Xem voucher",
+    "doAgain": "Làm lại"
+  };
+
+  const en = {
+    "voucher": "Voucher",
+    "login": "Log in",
+    "logout": "Log out",
+
+    "choosePlace": "Choose a place",
+    "centerMap": "Center map to spot",
+    "myLocation": "My location",
+    "distanceTo": "Distance to spot:",
+    "autoplayNear": "Auto play when ≤100m",
+
+    "subtitle": "Narration | Quiz (AI) | Map",
+    "introQuick": "Quick intro",
+    "tts": "Narration (TTS)",
+    "stop": "Stop",
+
+    "quizTitle": "AI Quiz",
+    "quizHint": "Always tied to the selected place, avoid repetition",
+    "createQuestion": "Create question",
+    "end": "End",
+
+    "selectAPlace": "Please select a place.",
+    "creatingQuestionFor": "Creating a question for",
+    "createQuestionFailure": "Couldn't generate a suitable question. Try again.",
+    "placeBadgeLabel": "Place:",
+    "questionCount": "Question",
+    "correctNow": "Correct so far:",
+    "changeQuestion": "New question",
+    "ptsPerQ": "+",
+    "ptsPerQTail": "pts/q",
+    "nextQuestion": "Next",
+
+    "doneTitle": "Done!",
+    "youCorrect": "You got",
+    "youCorrectTail": "correct.",
+    "youGained": "Points gained:",
+    "seeVoucher": "See vouchers",
+    "doAgain": "Retry"
+  };
+
+  try {
+    await db.collection("i18n").doc("vi").set(vi, { merge: true });
+    await db.collection("i18n").doc("en").set(en, { merge: true });
+    alert("✅ Seeded i18n/vi and i18n/en successfully!");
+  } catch (e) {
+    console.error("Seed error:", e);
+    alert("❌ Seed error: " + e.message);
+  }
+})();
+</script>
+</body>
+</html>
