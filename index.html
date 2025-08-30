@@ -62,29 +62,39 @@
 <body>
   <!-- Header -->
   <header class="px-4 lg:px-8 py-4 flex items-center justify-between">
+    <!-- Logo -->
     <div class="flex items-center gap-3">
       <img src="assets/location.svg" class="icon themable" alt="pin" />
       <h1 class="text-xl lg:text-2xl font-semibold">iTravel Guide</h1>
     </div>
 
-    <!-- XP bar -->
-      <div id="xp-wrapper" class="hidden sm:flex items-center gap-2">
-        <div id="xp-bar-container" class="h-[10px] w-[160px] rounded-full overflow-hidden border" style="background:var(--bg-soft); border-color:var(--border)">
-          <div id="xp-bar-fill" class="h-full" style="width:0%; background:linear-gradient(90deg, var(--primary), #60a5fa); transition:width .35s ease"></div>
+    <!-- Right: User + XP + Actions -->
+    <div class="flex items-center gap-4">
+      <!-- User + XP -->
+      <div class="flex flex-col items-end gap-1">
+        <span id="userName" class="text-sm font-medium"></span>
+        <div class="flex items-center gap-2">
+          <div id="xp-bar-container"
+              class="h-[8px] w-[160px] rounded-full overflow-hidden border"
+              style="background:var(--bg-soft); border-color:var(--border)">
+            <div id="xp-bar-fill" class="h-full"
+                style="width:0%; background:linear-gradient(90deg, var(--primary), #60a5fa); transition:width .35s ease"></div>
+          </div>
+          <span id="xp-label" class="text-xs text-[color:var(--muted)]">Lv 1 · 0/100</span>
         </div>
-        <span id="xp-label" class="text-xs" style="color:var(--muted)">Lv 1 · 0/100</span>
       </div>
 
-    <div class="flex items-center gap-3">
-      <div class="badge flex items-center gap-2 text-sm">
-        <img src="assets/star.svg" class="icon themable" alt="star"/>
-      </div>
-      <a href="voucher.html" class="btn secondary"><img src="assets/ticket.svg" class="icon themable" alt=""> Voucher</a>
+      <!-- Voucher -->
+      <a href="voucher.html" class="btn secondary">
+        <img src="assets/ticket.svg" class="icon themable" alt=""> Voucher
+      </a>
 
-      <!-- Theme + Auth -->
+      <!-- Theme -->
       <button class="btn secondary" id="themeBtn" title="Đổi giao diện">
         <img id="themeIcon" src="assets/theme-light.svg" class="icon" alt="theme">
       </button>
+
+      <!-- Auth -->
       <button class="btn secondary" id="loginBtn" title="Đăng nhập">
         <img src="assets/user.svg" class="icon themable" alt=""> Đăng nhập
       </button>
@@ -93,6 +103,8 @@
       </button>
     </div>
   </header>
+
+
 
   <!-- Main -->
   <main class="px-4 lg:px-8 pb-10 grid lg:grid-cols-2 gap-6">
@@ -263,47 +275,6 @@
       });
     });
   })();
-
-  /* ===================== Points / Level / Voucher ===================== */
-  const VOUCHER_THRESHOLDS=[50,150,300];
-  let points=0;
-  const levelFromPoints=p=> Math.floor(p/100)+1;
-  function updatePointsUI(){
-    document.getElementById('pointsText').textContent = 'Điểm: '+points;
-    document.getElementById('levelText').textContent  = 'Level: '+levelFromPoints(points);
-  }
-  async function ensureAuth(){ return new Promise(res=> auth.onAuthStateChanged(u=>{ if(u) return res(u); })); }
-  async function loadPoints(){
-    const u = auth.currentUser || await ensureAuth();
-    const ref=db.collection('users').doc(u.uid);
-    const snap=await ref.get();
-    points = snap.exists ? (snap.data().points||0) : 0;
-    await ref.set({points, awarded_thresholds: snap.exists?(snap.data().awarded_thresholds||[]):[]},{merge:true});
-    updatePointsUI();
-  }
-  async function setPoints(v){
-    const prev=points; points=v; updatePointsUI();
-    const u = auth.currentUser || await ensureAuth();
-    await db.collection('users').doc(u.uid).set({points:v, updatedAt: firebase.firestore.FieldValue.serverTimestamp()},{merge:true});
-    await awardAfterPointsChange(u, prev, v);
-  }
-  async function addPoints(v){ await setPoints(points+v); }
-  async function awardAfterPointsChange(user, prev, curr){
-    const crossed = VOUCHER_THRESHOLDS.filter(t=> prev < t && curr >= t);
-    if(!crossed.length) return;
-    const uRef = db.collection('users').doc(user.uid);
-    const uSnap = await uRef.get();
-    const awarded = (uSnap.exists && uSnap.data().awarded_thresholds) || [];
-    for(const t of crossed){
-      if(awarded.includes(t)) continue;
-      const voucherId = await db.collection('vouchers').add({
-        title:`Voucher mốc ${t} điểm`, description:`Quà tặng cho mốc ${t}`, ownerUid:user.uid,
-        status:'new', createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        expireAt: new Date(Date.now()+30*24*60*60*1000)
-      }).then(d=>d.id);
-      await uRef.set({ last_voucher_id:voucherId, awarded_thresholds: firebase.firestore.FieldValue.arrayUnion(t) },{merge:true});
-    }
-  }
 
   /* ===================== Map + Places (Huế) ===================== */
   const DATA_INDEX_URL='data/places.json';
@@ -690,7 +661,7 @@ Giải thích: [Giải thích ngắn gọn, chính xác]
 
     </script>
 
-  <!-- Points / Level / XP (duy nhất, dùng chung với quiz) -->
+ <!-- Points / Level / XP (duy nhất, dùng chung với quiz) -->
   <script>
   const XP_PER_LEVEL = 100;     // 100 điểm = 1 level
   let points = 0;
@@ -766,6 +737,34 @@ Giải thích: [Giải thích ngắn gọn, chính xác]
     await setPoints((Number(points)||0) + (Number(delta)||0));
   }
   </script>
+  
+<script>
+  function sanitizeUsername(str){
+    return String(str||'').replace(/[<>&]/g, m => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[m]));
+  }
+  function displayNameFromUser(u){
+    if(!u) return 'Khách';
+    if(u.displayName) return u.displayName;
+    if(u.email) return u.email.split('@')[0];
+    return `ID-${(u.uid||'').slice(0,6)}`;
+  }
+  function applyUserHeaderName(u){
+    var el = document.getElementById('userName');
+    if(el){ el.textContent = sanitizeUsername(displayNameFromUser(u)); }
+  }
+  // Independent auth listener just for header name
+  if (typeof auth !== 'undefined' && auth && typeof auth.onAuthStateChanged === 'function') {
+    auth.onAuthStateChanged(async (u)=>{
+      try { applyUserHeaderName(u); } catch(e){}
+      try { if (typeof loadPoints === 'function') await loadPoints(); } catch(e){}
+    });
+  } else {
+    // Fallback: run once on DOM ready
+    document.addEventListener('DOMContentLoaded', function(){
+      applyUserHeaderName(null);
+    });
+  }
+</script>
   
 </body>
 </html>
