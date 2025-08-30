@@ -26,7 +26,7 @@
 
     body{margin:0; color:var(--text); font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial;
       background: radial-gradient(1200px 600px at 10% -10%, rgba(122,162,255,.18), transparent 60%),
-                  radial-gradient(900px 500px at 110% 10%, rgba(125,211,252,.16), transparent 60%), var(--bg);}
+                  radial-gradient(900px 500px at 110% 10%, rgba(125,211,252,.16), transparent 60%), var(--bg);} 
     .card{ background:var(--card); color:var(--text); border:1px solid var(--border); border-radius:18px; box-shadow:var(--shadow); }
     .btn{ appearance:none; border:none; cursor:pointer; background:var(--primary); color:#fff; font-weight:700; padding:10px 14px; border-radius:12px; transition:transform .12s ease, background .2s ease; box-shadow:0 6px 18px rgba(37,99,235,.25); display:inline-flex; align-items:center; gap:8px; justify-content:center; text-decoration:none; }
     .btn:hover{ transform:translateY(-1px); background:var(--primary-strong); }
@@ -86,7 +86,7 @@
 
       <!-- Voucher -->
       <a href="voucher.html" class="btn secondary">
-        <img src="assets/ticket.svg" class="icon themable" alt=""> Voucher
+        <img src="assets/ticket.svg" class="icon themable" alt=""> <span data-i18n="voucher">Voucher</span>
       </a>
 
       <!-- Theme -->
@@ -94,12 +94,18 @@
         <img id="themeIcon" src="assets/theme-light.svg" class="icon" alt="theme">
       </button>
 
+      <!-- Language -->
+      <select id="langSelect" class="btn secondary" title="Language">
+        <option value="vi">🇻🇳 VI</option>
+        <option value="en">🇬🇧 EN</option>
+      </select>
+
       <!-- Auth -->
       <button class="btn secondary" id="loginBtn" title="Đăng nhập">
-        <img src="assets/user.svg" class="icon themable" alt=""> Đăng nhập
+        <img src="assets/user.svg" class="icon themable" alt=""> <span data-i18n="login">Đăng nhập</span>
       </button>
       <button class="btn secondary hidden" id="logoutBtn" title="Đăng xuất">
-        <img src="assets/exit.svg" class="icon themable" alt=""> Đăng xuất
+        <img src="assets/exit.svg" class="icon themable" alt=""> <span data-i18n="logout">Đăng xuất</span>
       </button>
     </div>
   </header>
@@ -112,20 +118,20 @@
     <section class="card p-4 lg:p-6">
       <div class="flex flex-col lg:flex-row lg:items-end gap-3 mb-4">
         <div class="flex-1">
-          <label class="text-sm text-[color:var(--muted)]">Chọn địa điểm</label>
+          <label class="text-sm text-[color:var(--muted)]" data-i18n="choosePlace">Chọn địa điểm</label>
           <select id="placeSelect" class="w-full mt-1 bg-transparent border rounded-lg px-3 py-2" style="border-color:var(--border)"></select>
         </div>
         <div class="flex gap-2">
-          <button id="centerBtn" class="btn secondary"><img src="assets/target.svg" class="icon themable" alt=""> Đưa bản đồ tới điểm</button>
-          <button id="locateBtn" class="btn secondary"><img src="assets/gps.svg" class="icon themable" alt=""> Vị trí của tôi</button>
+          <button id="centerBtn" class="btn secondary"><img src="assets/target.svg" class="icon themable" alt=""> <span data-i18n="centerMap">Đưa bản đồ tới điểm</span></button>
+          <button id="locateBtn" class="btn secondary"><img src="assets/gps.svg" class="icon themable" alt=""> <span data-i18n="myLocation">Vị trí của tôi</span></button>
         </div>
       </div>
       <div id="map" class="rounded-xl overflow-hidden"></div>
       <div class="flex items-center gap-3 mt-4">
-        <span class="text-sm text-[color:var(--muted)]">Khoảng cách tới điểm:</span>
+        <span class="text-sm text-[color:var(--muted)]" data-i18n="distanceTo">Khoảng cách tới điểm:</span>
         <strong id="distance">—</strong>
         <label class="ml-auto flex items-center gap-2 text-sm">
-          <input id="autoplay" type="checkbox" class="scale-125"> <span>Tự phát khi ≤100m</span>
+          <input id="autoplay" type="checkbox" class="scale-125"> <span data-i18n="autoplayNear">Tự phát khi ≤100m</span>
         </label>
       </div>
     </section>
@@ -134,25 +140,25 @@
     <section class="card p-4 lg:p-6 flex flex-col gap-4">
       <div>
         <h2 id="placeTitle" class="text-2xl font-semibold"></h2>
-        <p class="text-sm text-[color:var(--muted)] mt-1">Thuyết minh | Quiz (AI) | Map</p>
+        <p class="text-sm text-[color:var(--muted)] mt-1" data-i18n="subtitle">Thuyết minh | Quiz (AI) | Map</p>
       </div>
       <div class="space-y-3">
-        <div class="text-sm text-[color:var(--muted)]">Giới thiệu nhanh</div>
+        <div class="text-sm text-[color:var(--muted)]" data-i18n="introQuick">Giới thiệu nhanh</div>
         <p id="intro" class="leading-relaxed"></p>
       </div>
       <div class="grid sm:grid-cols-2 gap-3">
-        <button id="aiReadBtn" class="btn"><img src="assets/volume.svg" alt="" class="icon themable"> Máy đọc thuyết minh</button>
-        <button id="stopReadBtn" class="btn secondary"><img src="assets/stop.svg" alt="" class="icon themable"> Dừng đọc</button>
+        <button id="aiReadBtn" class="btn"><img src="assets/volume.svg" alt="" class="icon themable"> <span data-i18n="tts">Máy đọc thuyết minh</span></button>
+        <button id="stopReadBtn" class="btn secondary"><img src="assets/stop.svg" alt="" class="icon themable"> <span data-i18n="stop">Dừng đọc</span></button>
       </div>
       <div class="border-t border-dashed" style="border-color:var(--border)"></div>
       <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
         <div>
-          <div class="font-medium">Trắc nghiệm AI</div>
-          <div class="text-sm text-[color:var(--muted)]">Luôn gắn với địa điểm đang chọn, tránh lặp câu</div>
+          <div class="font-medium" data-i18n="quizTitle">Trắc nghiệm AI</div>
+          <div class="text-sm text-[color:var(--muted)]" data-i18n="quizHint">Luôn gắn với địa điểm đang chọn, tránh lặp câu</div>
         </div>
         <div class="quiz-actions">
-          <button id="startQuiz" class="btn"><img src="assets/play.svg" alt="" class="icon themable"> Tạo câu hỏi</button>
-          <button id="endQuiz" class="btn secondary"><img src="assets/stop.svg" alt="" class="icon themable"> Kết thúc</button>
+          <button id="startQuiz" class="btn"><img src="assets/play.svg" alt="" class="icon themable"> <span data-i18n="createQuestion">Tạo câu hỏi</span></button>
+          <button id="endQuiz" class="btn secondary"><img src="assets/stop.svg" alt="" class="icon themable"> <span data-i18n="end">Kết thúc</span></button>
         </div>
       </div>
       <div id="quizBox" class="hidden mt-2">
@@ -276,6 +282,119 @@
     });
   })();
 
+  /* ===================== LangSync (Firebase i18n) ===================== */
+  (function LangSync(){
+    const LS_KEY_LANG = 'app-lang';
+    const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('lang-sync') : null;
+    const langSelect = document.getElementById('langSelect');
+
+    let uid = null, currentLang = null, unsubUser = null, suppressNext = false;
+    let dictCache = {}; // { lang: {key: value} }
+
+    function getSystemLang(){
+      const n = (navigator.language || 'vi').toLowerCase();
+      if (n.startsWith('vi')) return 'vi';
+      return 'en';
+    }
+    function getLocalLang(){ try{return localStorage.getItem(LS_KEY_LANG)}catch{return null} }
+    function setLocalLang(v){ try{ localStorage.setItem(LS_KEY_LANG, v) }catch{} }
+
+    function applyI18nDict(dict){
+      if(!dict) return;
+      document.querySelectorAll('[data-i18n]').forEach(el=>{
+        const key = el.getAttribute('data-i18n');
+        if (key && dict[key]!=null) el.textContent = dict[key];
+      });
+      const loginBtn = document.getElementById('loginBtn');
+      const logoutBtn = document.getElementById('logoutBtn');
+      if (loginBtn && dict.login) loginBtn.title = dict.login;
+      if (logoutBtn && dict.logout) logoutBtn.title = dict.logout;
+    }
+
+    async function loadDict(lang){
+      if (dictCache[lang]) return dictCache[lang];
+      try{
+        const snap = await db.collection('i18n').doc(lang).get();
+        if (snap.exists){
+          dictCache[lang] = snap.data() || {};
+          return dictCache[lang];
+        }
+      }catch(e){ console.warn('i18n load error', e); }
+      dictCache[lang] = {}; // fallback
+      return dictCache[lang];
+    }
+
+    async function setRemoteLang(lang){
+      if(!uid) return;
+      suppressNext = true;
+      try{
+        await db.collection('users').doc(uid).set({
+          prefs: { lang, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }
+        }, { merge: true });
+      } finally {
+        setTimeout(()=> suppressNext=false, 250);
+      }
+    }
+
+    async function applyLang(lang){
+      currentLang = lang;
+      if (langSelect) langSelect.value = lang;
+      setLocalLang(lang);
+      const dict = await loadDict(lang);
+      window.__i18n = dict; // expose
+      applyI18nDict(dict);
+      if (bc) bc.postMessage({type:'lang-applied', lang});
+      try{ window.dispatchEvent(new CustomEvent('langchange', {detail:{lang}})); }catch{}
+    }
+
+    window.LangManager = {
+      get(){ return currentLang || getLocalLang() || getSystemLang(); },
+      async set(lang){ if (!lang) return; await applyLang(lang); await setRemoteLang(lang); },
+      t(key, fallback){ return (window.__i18n && window.__i18n[key]!=null) ? window.__i18n[key] : (fallback||''); }
+    };
+
+    langSelect?.addEventListener('change', (e)=>{ window.LangManager.set(e.target.value); });
+
+    if (bc){
+      bc.onmessage = (ev)=>{
+        if (ev?.data?.type === 'lang-applied'){
+          const lang = ev.data.lang;
+          if (lang && lang !== currentLang){ applyLang(lang); }
+        }
+      };
+    }
+
+    (async ()=>{ const initial = getLocalLang() || getSystemLang(); await applyLang(initial); })();
+
+    auth.onAuthStateChanged(async (user)=>{
+      if (unsubUser){ unsubUser(); unsubUser = null; }
+      uid = user?.uid || null;
+
+      if (!uid){ const lang = getLocalLang() || getSystemLang(); await applyLang(lang); return; }
+
+      const userRef = db.collection('users').doc(uid);
+      const snap = await userRef.get();
+      let remoteLang = snap.exists ? (snap.data()?.prefs?.lang || null) : null;
+
+      if (!remoteLang){
+        remoteLang = getLocalLang() || getSystemLang();
+        await applyLang(remoteLang);
+        await setRemoteLang(remoteLang);
+      } else {
+        setLocalLang(remoteLang);
+        await applyLang(remoteLang);
+      }
+
+      unsubUser = userRef.onSnapshot(s=>{
+        if (!s.exists) return;
+        const v = s.data()?.prefs?.lang;
+        if (!v) return;
+        if (suppressNext) return;
+        if (v !== currentLang){ setLocalLang(v); applyLang(v); }
+      });
+    });
+  })();
+
   /* ===================== Map + Places (Huế) ===================== */
   const DATA_INDEX_URL='data/places.json';
   let PLACES=[], currentPlace=null, currentReadText='';
@@ -351,7 +470,7 @@
   function aiRead(){
     const introEl=$('#intro');
     const text=((currentPlace?.name? currentPlace.name+'. ' : '') + (currentReadText||'')).replace(/\s+/g,' ').trim();
-    const sentences=text.split(/(?<=[\.!\?…])\s+/);
+    const sentences=text.split(/(?<=[\.\!\?…])\s+/);
     if(introEl){ introEl.innerHTML=''; const c=document.createElement('span'); sentences.forEach((s,i)=>{ const sp=document.createElement('span'); sp.textContent=(i?' ':'')+s; sp.dataset.idx=i; c.appendChild(sp); }); introEl.appendChild(c); }
     speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.lang='vi-VN'; const v=getVietnamVoice(); if(v) u.voice=v;
     const offsets=[]; let acc=0; sentences.forEach((s,i)=>{ offsets.push(acc); acc+=(i?1:0)+s.length; });
@@ -365,10 +484,8 @@
 
   window.GEMINI_KEY = window.GEMINI_KEY || 'AIzaSyD1DdWMyjh5ne8zpJKXJ8GdxB1k2a8INOM';
 
-  /* Helper sleep cho retry */
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-  /* Hàm gọi Gemini: dùng nhiều model + retry backoff (lấy từ file của bạn) */
   async function callGemini(messages) {
     const prompt = messages.map(m => `${m.role}: ${m.content}`).join("\n");
     const models = ["gemini-1.5-flash","gemini-1.5-flash-8b","gemini-1.5-pro"];
@@ -413,12 +530,8 @@
     return "Hiện mô hình đang quá tải. Hãy thử lại sau ít giây.";
   }
 
+  async function callAI(messages){ return await callGemini(messages); }
 
-  async function callAI(messages){
-    return await callGemini(messages);
-  }
-
-  // (Tuỳ chọn) load seed ví dụ từ currentPlace.quiz_url để làm tham khảo
   let quizSeed=null, seedLoadedFor=null;
   async function loadQuizSeedIfAny(){
     if(!currentPlace) return;
@@ -430,11 +543,8 @@
     }
   }
 
-  // Bộ nhớ câu hỏi theo địa điểm (tránh lặp)
   const QUIZ_MEMORY = new Map(); // { placeId => Set(normalizedQuestion) }
-  function normalizeQ(q){
-    return String(q||'').toLowerCase().replace(/\s+/g,' ').replace(/[“”"'.?!:,;()\[\]]/g,'').trim();
-  }
+  function normalizeQ(q){ return String(q||'').toLowerCase().replace(/\s+/g,' ').replace(/[“”"'.?!:,;()\[\]]/g,'').trim(); }
   function rememberQuestion(placeId, q){
     const key = placeId || '_global';
     if(!QUIZ_MEMORY.has(key)) QUIZ_MEMORY.set(key, new Set());
@@ -449,7 +559,6 @@
     return s.has(normalizeQ(q));
   }
 
-  // Tạo context cho AI
   function getPlaceContext(){
     const name = currentPlace?.name || '';
     const intro = (currentReadText || '').replace(/\s+/g,' ').trim().slice(0, 1000);
@@ -478,7 +587,6 @@ Giải thích: ${it.explain||''}`;
   function buildQuizMessages(){
     const ctx = getPlaceContext();
     const avoid = buildAvoidList();
-    const seedSnippet = buildSeedSnippet();
 
     const placeHint = ctx.name ? `ĐỊA ĐIỂM: ${ctx.name} ${ctx.coords?ctx.coords:''}` : '';
     const facts = ctx.intro ? `TÓM TẮT THUYẾT MINH:
@@ -491,9 +599,6 @@ ${avoid}
     const userPrompt = `
 ${placeHint}
 ${facts}
-${seedSnippet ? `VÍ DỤ THAM KHẢO (đừng lặp lại, chỉ học phong cách/độ khó):
-${seedSnippet}
-` : ''}
 
 YÊU CẦU:
 - Tạo 01 câu hỏi TRẮC NGHIỆM MỚI, LIÊN QUAN TRỰC TIẾP tới địa điểm trên (lịch sử/kiến trúc/văn hoá...).
@@ -538,12 +643,12 @@ Giải thích: [Giải thích ngắn gọn, chính xác]
   function setProg(){ const p=document.getElementById('qprog'); if(!p) return; const pct=Math.round((qIdx/10)*100); p.style.width=pct+'%'; }
 
   async function renderQuiz(){
-    if(!currentPlace){ alert('Hãy chọn địa điểm.'); return; }
+    if(!currentPlace){ alert(window.LangManager.t('selectAPlace','Hãy chọn địa điểm.')); return; }
     await loadQuizSeedIfAny();
 
     const box=document.getElementById('quizBox'); box.classList.remove('hidden');
     const wrap=document.getElementById('qwrap'); setProg();
-    wrap.innerHTML = `<div class="text-sm text-[color:var(--muted)]">Đang tạo câu hỏi cho <b>${currentPlace.name}</b>…</div>`;
+    wrap.innerHTML = `<div class="text-sm text-[color:var(--muted)]">${window.LangManager.t('creatingQuestionFor','Đang tạo câu hỏi cho')} <b>${currentPlace.name}</b>…</div>`;
 
     const MAX_TRY=3;
     let parsed=null;
@@ -554,7 +659,7 @@ Giải thích: [Giải thích ngắn gọn, chính xác]
       if(parsed && !hasSeenQuestion(currentPlace.id, parsed.question)) break;
       if(attempt===MAX_TRY && parsed) break; // dùng tạm
     }
-    if(!parsed){ wrap.innerHTML='<div class="text-red-400">Không tạo được câu phù hợp. Thử lại.</div>'; return; }
+    if(!parsed){ wrap.innerHTML=`<div class="text-red-400">${window.LangManager.t('createQuestionFailure','Không tạo được câu phù hợp. Thử lại.')}</div>`; return; }
 
     rememberQuestion(currentPlace.id, parsed.question);
 
@@ -562,20 +667,20 @@ Giải thích: [Giải thích ngắn gọn, chính xác]
     wrap.innerHTML = `
       <div class="flex items-center justify-between">
         <div class="quiz-stats">
-          <span class="quiz-badge">Địa điểm: ${currentPlace.name}</span>
-          <span class="quiz-badge">Câu ${qIdx+1}/10</span>
-          <span>Đúng hiện tại: <b>${qScore}</b></span>
+          <span class="quiz-badge">${window.LangManager.t('placeBadgeLabel','Địa điểm:')} ${currentPlace.name}</span>
+          <span class="quiz-badge">${window.LangManager.t('questionCount','Câu')} ${qIdx+1}/10</span>
+          <span>${window.LangManager.t('correctNow','Đúng hiện tại:')} <b>${qScore}</b></span>
         </div>
         <div class="quiz-actions">
-          <button id="regenBtn" class="btn secondary"><img src="assets/play.svg" class="icon themable" alt=""> Đổi câu khác</button>
-          <span class="quiz-badge">+${perPoints()} đ/câu</span>
+          <button id="regenBtn" class="btn secondary"><img src="assets/play.svg" class="icon themable" alt=""> ${window.LangManager.t('changeQuestion','Đổi câu khác')}</button>
+          <span class="quiz-badge">${window.LangManager.t('ptsPerQ','+')}${perPoints()} ${window.LangManager.t('ptsPerQTail','đ/câu')}</span>
         </div>
       </div>
       <div class="mt-3 text-lg font-medium">${question}</div>
       <div id="choices" class="mt-3 grid gap-2"></div>
       <div id="explain" class="mt-3 hidden quiz-explain"></div>
       <div class="mt-3 quiz-actions">
-        <button id="nextBtn" class="btn" disabled><img src="assets/play.svg" class="icon themable" alt=""> Câu tiếp</button>
+        <button id="nextBtn" class="btn" disabled><img src="assets/play.svg" class="icon themable" alt=""> ${window.LangManager.t('nextQuestion','Câu tiếp')}</button>
       </div>
     `;
 
@@ -594,9 +699,7 @@ Giải thích: [Giải thích ngắn gọn, chính xác]
         const ok = (chosenLetter === correctAnswer);
         div.classList.add(ok?'correct':'wrong');
         if(!ok){
-          [...chWrap.children].forEach(el=>{
-            if(el.textContent.trim().startsWith(correctAnswer)) el.classList.add('correct');
-          });
+          [...chWrap.children].forEach(el=>{ if(el.textContent.trim().startsWith(correctAnswer)) el.classList.add('correct'); });
         }
         expEl.textContent = explanation || '';
         expEl.classList.remove('hidden');
@@ -605,20 +708,18 @@ Giải thích: [Giải thích ngắn gọn, chính xác]
       chWrap.appendChild(div);
     });
 
-    regen.addEventListener('click', ()=>{ // đổi câu mới, không tăng qIdx
-      renderQuiz();
-    });
+    regen.addEventListener('click', ()=>{ renderQuiz(); });
 
     next.addEventListener('click', async()=>{
       qIdx++; setProg();
       if(qIdx>=10){
         wrap.innerHTML=`
-          <div class="text-xl font-semibold">Hoàn thành!</div>
-          <div class="mt-2">Bạn đúng <b>${qScore}</b>/10 câu.</div>
-          <div class="mt-2">Điểm thưởng vừa nhận: <b>+${qGained}</b></div>
+          <div class="text-xl font-semibold">${window.LangManager.t('doneTitle','Hoàn thành!')}</div>
+          <div class="mt-2">${window.LangManager.t('youCorrect','Bạn đúng')} <b>${qScore}</b>/10 ${window.LangManager.t('youCorrectTail','câu.')}</div>
+          <div class="mt-2">${window.LangManager.t('youGained','Điểm thưởng vừa nhận:')} <b>+${qGained}</b></div>
           <div class="mt-3 quiz-actions">
-            <a href="voucher.html" class="btn"><img src="assets/ticket.svg" class="icon themable" alt=""> Xem voucher</a>
-            <button id="againBtn" class="btn secondary"><img src="assets/play.svg" class="icon themable" alt=""> Làm lại</button>
+            <a href="voucher.html" class="btn"><img src="assets/ticket.svg" class="icon themable" alt=""> ${window.LangManager.t('seeVoucher','Xem voucher')}</a>
+            <button id="againBtn" class="btn secondary"><img src="assets/play.svg" class="icon themable" alt=""> ${window.LangManager.t('doAgain','Làm lại')}</button>
           </div>`;
         try{ await addPoints(qGained); }catch{}
         document.getElementById('againBtn').onclick=()=>{ qIdx=0;qScore=0;qGained=0; setProg(); renderQuiz(); };
@@ -635,12 +736,8 @@ Giải thích: [Giải thích ngắn gọn, chính xác]
     document.getElementById('loginBtn').onclick  = gotoLogin;
     document.getElementById('logoutBtn').onclick = ()=> auth.signOut();
 
-    auth.onAuthStateChanged(async (u)=>{
-      updateAuthUI(u);
-      if(u){ await loadPoints().catch(()=>{}); }
-    });
+    auth.onAuthStateChanged(async (u)=>{ updateAuthUI(u); if(u){ await loadPoints().catch(()=>{}); } });
 
-    // Cho phép dùng ẩn danh nếu chưa login (đồng bộ theme/điểm cơ bản)
     try { if(!auth.currentUser) await auth.signInAnonymously(); } catch(e){}
 
     await loadPoints();
@@ -659,8 +756,6 @@ Giải thích: [Giải thích ngắn gọn, chính xác]
   });
   </script>
 
-    </script>
-
  <!-- Points / Level / XP (duy nhất, dùng chung với quiz) -->
   <script>
   const XP_PER_LEVEL = 100;     // 100 điểm = 1 level
@@ -668,10 +763,7 @@ Giải thích: [Giải thích ngắn gọn, chính xác]
 
   async function ensureAuth(){
     return new Promise((resolve)=>{
-      auth.onAuthStateChanged(async (u)=>{
-        if (u) return resolve(u);
-        try{ await auth.signInAnonymously(); }catch(e){ console.warn(e); }
-      });
+      auth.onAuthStateChanged(async (u)=>{ if (u) return resolve(u); try{ await auth.signInAnonymously(); }catch(e){ console.warn(e); } });
     });
   }
 
@@ -733,42 +825,19 @@ Giải thích: [Giải thích ngắn gọn, chính xác]
     }
   }
 
-  async function addPoints(delta){
-    await setPoints((Number(points)||0) + (Number(delta)||0));
-  }
+  async function addPoints(delta){ await setPoints((Number(points)||0) + (Number(delta)||0)); }
   </script>
   
 <script>
-  function sanitizeUsername(str){
-    return String(str||'').replace(/[<>&]/g, m => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[m]));
-  }
-  function displayNameFromUser(u){
-    if(!u) return 'Khách';
-    if(u.displayName) return u.displayName;
-    if(u.email) return u.email.split('@')[0];
-    return `ID-${(u.uid||'').slice(0,6)}`;
-  }
-  function applyUserHeaderName(u){
-    var el = document.getElementById('userName');
-    if(el){ el.textContent = sanitizeUsername(displayNameFromUser(u)); }
-  }
-  // Independent auth listener just for header name
+  function sanitizeUsername(str){ return String(str||'').replace(/[<>&]/g, m => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[m])); }
+  function displayNameFromUser(u){ if(!u) return 'Khách'; if(u.displayName) return u.displayName; if(u.email) return u.email.split('@')[0]; return `ID-${(u.uid||'').slice(0,6)}`; }
+  function applyUserHeaderName(u){ var el = document.getElementById('userName'); if(el){ el.textContent = sanitizeUsername(displayNameFromUser(u)); } }
   if (typeof auth !== 'undefined' && auth && typeof auth.onAuthStateChanged === 'function') {
-    auth.onAuthStateChanged(async (u)=>{
-      try { applyUserHeaderName(u); } catch(e){}
-      try { if (typeof loadPoints === 'function') await loadPoints(); } catch(e){}
-    });
+    auth.onAuthStateChanged(async (u)=>{ try { applyUserHeaderName(u); } catch(e){} try { if (typeof loadPoints === 'function') await loadPoints(); } catch(e){} });
   } else {
-    // Fallback: run once on DOM ready
-    document.addEventListener('DOMContentLoaded', function(){
-      applyUserHeaderName(null);
-    });
+    document.addEventListener('DOMContentLoaded', function(){ applyUserHeaderName(null); });
   }
 </script>
   
 </body>
 </html>
-
-
-
-
