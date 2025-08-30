@@ -67,12 +67,17 @@
       <h1 class="text-xl lg:text-2xl font-semibold">iTravel Guide</h1>
     </div>
 
+    <!-- XP bar -->
+      <div id="xp-wrapper" class="hidden sm:flex items-center gap-2">
+        <div id="xp-bar-container" class="h-[10px] w-[160px] rounded-full overflow-hidden border" style="background:var(--bg-soft); border-color:var(--border)">
+          <div id="xp-bar-fill" class="h-full" style="width:0%; background:linear-gradient(90deg, var(--primary), #60a5fa); transition:width .35s ease"></div>
+        </div>
+        <span id="xp-label" class="text-xs" style="color:var(--muted)">Lv 1 · 0/100</span>
+      </div>
+
     <div class="flex items-center gap-3">
       <div class="badge flex items-center gap-2 text-sm">
         <img src="assets/star.svg" class="icon themable" alt="star"/>
-        <span id="pointsText">Điểm: 0</span>
-        <span class="opacity-60">|</span>
-        <span id="levelText">Level: 1</span>
       </div>
       <a href="voucher.html" class="btn secondary"><img src="assets/ticket.svg" class="icon themable" alt=""> Voucher</a>
 
@@ -682,8 +687,89 @@ Giải thích: [Giải thích ngắn gọn, chính xác]
     updatePointsUI();
   });
   </script>
+
+    </script>
+
+  <!-- Points / Level / XP (duy nhất, dùng chung với quiz) -->
+  <script>
+  const XP_PER_LEVEL = 100;     // 100 điểm = 1 level
+  let points = 0;
+
+  async function ensureAuth(){
+    return new Promise((resolve)=>{
+      auth.onAuthStateChanged(async (u)=>{
+        if (u) return resolve(u);
+        try{ await auth.signInAnonymously(); }catch(e){ console.warn(e); }
+      });
+    });
+  }
+
+  const levelFromPoints = (p)=> Math.floor((Number(p)||0) / XP_PER_LEVEL) + 1;
+
+  function updateXPUI(){
+    const lv  = levelFromPoints(points);
+    const cur = (Number(points)||0) % XP_PER_LEVEL;
+    const pct = Math.max(0, Math.min(100, Math.round((cur/XP_PER_LEVEL)*100)));
+    const fill = document.getElementById('xp-bar-fill');
+    const lab  = document.getElementById('xp-label');
+    if (fill) fill.style.width = pct + '%';
+    if (lab)  lab.textContent  = `Lv ${lv} · ${cur}/${XP_PER_LEVEL}`;
+  }
+
+  function updatePointsUI(){
+    const ptEl = document.getElementById('pointsText');
+    const lvEl = document.getElementById('levelText');
+    if (ptEl) ptEl.textContent = 'Điểm: ' + points;
+    if (lvEl) lvEl.textContent = 'Level: ' + levelFromPoints(points);
+    updateXPUI();
+  }
+
+  // ĐỌC điểm từ Firestore và đồng bộ xp/level
+  async function loadPoints(){
+    const u = auth.currentUser || await ensureAuth();
+    const ref  = db.collection('users').doc(u.uid);
+    const snap = await ref.get();
+
+    const dbPoints = snap.exists ? ((snap.data().points ?? snap.data().xp) ?? 0) : 0;
+    points = Number(dbPoints) || 0;
+
+    await ref.set({
+      points,
+      xp: points,
+      level: levelFromPoints(points),
+      awarded_thresholds: snap.exists ? (snap.data().awarded_thresholds||[]) : []
+    }, { merge: true });
+
+    updatePointsUI();
+  }
+
+  // GHI điểm tuyệt đối và đồng bộ xp/level (+ gọi award nếu có)
+  async function setPoints(v){
+    const prev = points;
+    points = Number(v)||0;
+    updatePointsUI();
+
+    const u = auth.currentUser || await ensureAuth();
+    await db.collection('users').doc(u.uid).set({
+      points,
+      xp: points,
+      level: levelFromPoints(points),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+
+    if (typeof awardAfterPointsChange === 'function') {
+      await awardAfterPointsChange(u, prev, points);
+    }
+  }
+
+  async function addPoints(delta){
+    await setPoints((Number(points)||0) + (Number(delta)||0));
+  }
+  </script>
+  
 </body>
 </html>
+
 
 
 
