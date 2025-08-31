@@ -879,7 +879,74 @@ window.addEventListener('langchange', async (e)=>{
   await renderPlace();
 });
 </script>
+
+<script>
+    (function UsernameValidatorInit(){
+      const NO_UNICODE_RE = /^[\x20-\x7E]+$/;
+      const USERNAME_ASCII_RE = /^(?!.*\.\.)(?!.*__)(?!.*--)[A-Za-z0-9](?:[A-Za-z0-9._-]{0,28}[A-Za-z0-9])$/;
+
+      function validateUsernameValue(val){
+        const s = (val||"").trim();
+        if(!NO_UNICODE_RE.test(s)) {
+          return { ok:false, msg:"Chỉ cho phép ASCII, không ký tự Unicode." };
+        }
+        if(!USERNAME_ASCII_RE.test(s)) {
+          return { ok:false, msg:"2–30 ký tự: A–Z a–z 0–9 . _ -, không đầu/cuối bằng . _ -, không có .. __ --" };
+        }
+        return { ok:true, msg:"" };
+      }
+
+      function attach(el){
+        if(!el || el._usernameValidatorBound) return;
+        el._usernameValidatorBound = true;
+
+        el.setAttribute("autocomplete","username");
+        el.setAttribute("spellcheck","false");
+        el.setAttribute("autocapitalize","off");
+        el.setAttribute("minlength","2");
+        el.setAttribute("maxlength","30");
+
+        el.addEventListener("input", () => {
+          const {ok, msg} = validateUsernameValue(el.value);
+          el.setCustomValidity(ok ? "" : msg);
+          el.reportValidity();
+        });
+
+        el.form?.addEventListener("submit", (e) => {
+          const {ok, msg} = validateUsernameValue(el.value);
+          if(!ok){
+            e.preventDefault();
+            el.setCustomValidity(msg);
+            el.reportValidity();
+            el.focus();
+          } else {
+            el.setCustomValidity("");
+          }
+        });
+      }
+
+      document.querySelectorAll('input[name="username"], [data-username]').forEach(attach);
+
+      const obs = new MutationObserver((mutations)=>{
+        mutations.forEach(m=>{
+          m.addedNodes.forEach(node=>{
+            if(!(node instanceof Element)) return;
+            if(node.matches?.('input[name="username"], [data-username]')) attach(node);
+            node.querySelectorAll?.('input[name="username"], [data-username]').forEach(attach);
+          });
+        });
+      });
+      obs.observe(document.documentElement, {childList:true, subtree:true});
+
+      window.UsernameValidator = {
+        validateRaw: (val)=> validateUsernameValue(val),
+        regex: { NO_UNICODE_RE, USERNAME_ASCII_RE },
+        attach
+      };
+    })();
+  </script>
   
 </body>
 </html>
+
 
