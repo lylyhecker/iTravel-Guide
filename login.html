@@ -1,17 +1,20 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Đăng Nhập</title>
 
   <!-- Favicon SVG theo theme -->
   <link id="favicon" rel="icon" type="image/svg+xml" href="assets/favicon-light.svg" />
 
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FA icon cho spinner / alerts -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 
   <style>
+    /* Ẩn body để tránh “nháy” khi đang kiểm tra auth */
     html,body{height:100%}
     body{visibility:hidden}
 
@@ -41,8 +44,6 @@
     .logo{ width:36px; height:36px; border-radius:12px; display:grid; place-items:center; background:linear-gradient(135deg,var(--primary),#60a5fa); box-shadow:var(--shadow); }
     .icon{ width:18px; height:18px; object-fit:contain; display:inline-block; vertical-align:middle; }
     #guestBtn{ width:100%; display:flex; align-items:center; justify-content:center; }
-    .sso { display:grid; grid-template-columns: 1fr; gap:8px; }
-    .sso .btn { width:100% }
   </style>
 </head>
 <body>
@@ -54,56 +55,53 @@
             <img src="assets/login.svg" class="icon" alt="key">
           </div>
           <div>
-            <h1 class="text-lg font-extrabold">Đăng nhập</h1>
-            <div class="text-xs muted" id="status">Tiếp tục hành trình của bạn</div>
+            <h1 class="text-lg font-extrabold" data-i18n="loginTitle">Đăng nhập</h1>
+            <div class="text-xs muted" id="status" data-i18n="continueSubtitle">Tiếp tục hành trình của bạn</div>
           </div>
         </div>
-        <button class="btn secondary" id="themeBtn" title="Đổi giao diện">
-          <img id="themeIcon" src="assets/theme-light.svg" class="icon" alt="theme">
-        </button>
+        <div class="flex items-center gap-2">
+          <button class="btn secondary" id="themeBtn" title="Đổi giao diện">
+            <img id="themeIcon" src="assets/theme-light.svg" class="icon" alt="theme">
+          </button>
+          <select id="langSelect" class="btn secondary" title="Language">
+            <option value="vi">🇻🇳 VI</option>
+            <option value="en">🇬🇧 EN</option>
+          </select>
+        </div>
       </div>
 
       <section class="card p-5">
-        <!-- Email / password -->
         <form id="login-form" class="space-y-4">
           <div>
-            <label class="text-sm muted block mb-1">
+            <label class="text-sm muted block mb-1" data-i18n="emailLabel">
               <img src="assets/mail.svg" class="icon" alt="email"> Email
             </label>
-            <input id="email" type="email" required class="input" autocomplete="username" />
+            <input id="email" type="email" required class="input" autocomplete="username" data-i18n-ph="emailPh" />
           </div>
           <div>
-            <label class="text-sm muted block mb-1">
+            <label class="text-sm muted block mb-1" data-i18n="passwordLabel">
               <img src="assets/lock.svg" class="icon" alt="password"> Mật khẩu
             </label>
-            <input id="password" type="password" minlength="6" required class="input" autocomplete="current-password" />
+            <input id="password" type="password" minlength="6" required class="input" autocomplete="current-password" data-i18n-ph="passwordPh" />
           </div>
           <button id="login-btn" type="submit" class="btn">
-            <img src="assets/sign-in.svg" class="icon" alt="login"> Đăng nhập
+            <img src="assets/sign-in.svg" class="icon" alt="login"> <span data-i18n="loginBtn">Đăng nhập</span>
           </button>
         </form>
 
-        <!-- Hoặc đăng nhập nhanh bằng SSO -->
-        <div class="my-4 text-center muted">— hoặc —</div>
-        <div class="sso">
-          <button id="googleBtn" class="btn secondary"><i class="fa-brands fa-google"></i> Đăng nhập bằng Google</button>
-          <button id="githubBtn" class="btn secondary"><i class="fa-brands fa-github"></i> Đăng nhập bằng GitHub</button>
-          <button id="microsoftBtn" class="btn secondary"><i class="fa-brands fa-microsoft"></i> Đăng nhập bằng Microsoft</button>
-        </div>
-
         <div class="mt-4">
           <button id="guestBtn" onclick="continueAsGuest()" class="btn secondary">
-            <img src="assets/user.svg" class="icon" alt="guest"> Tiếp tục với tư cách khách
+            <img src="assets/user.svg" class="icon" alt="guest"> <span data-i18n="guestBtn">Tiếp tục với tư cách khách</span>
           </button>
         </div>
 
         <p class="mt-4 text-center flex items-center justify-content-center gap-2 flex-wrap">
           <a class="btn secondary" href="forgot-password.html">
-            <img src="assets/help.svg" class="icon" alt="forgot"> Quên mật khẩu?
+            <img src="assets/help.svg" class="icon" alt="forgot"> <span data-i18n="forgot">Quên mật khẩu?</span>
           </a>
           <span class="mx-2 muted">|</span>
           <a class="btn secondary" href="signup.html">
-            <img src="assets/user-plus.svg" class="icon" alt="signup"> Đăng ký
+            <img src="assets/user-plus.svg" class="icon" alt="signup"> <span data-i18n="signup">Đăng ký</span>
           </a>
         </p>
       </section>
@@ -116,15 +114,17 @@
       <i id="notification-icon" class="text-5xl mb-4"></i>
       <h2 id="notification-title" class="text-xl font-semibold mb-3"></h2>
       <p id="notification-message" class="muted mb-5"></p>
-      <button onclick="closeModal('notification-modal')" class="btn">Đóng</button>
+      <button onclick="closeModal('notification-modal')" class="btn" data-i18n="close">Đóng</button>
     </div>
   </div>
 
   <!-- Firebase compat -->
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <!-- Thêm Firestore để i18n -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 
-  <!-- ThemeManager -->
+  <!-- ThemeManager + đồng bộ favicon/icon -->
   <script>
     (function(){
       var ThemeManager;
@@ -133,9 +133,9 @@
       const getSystemPref=()=> (window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
       function dispatchChange(theme){try{window.dispatchEvent(new CustomEvent('themechange',{detail:{theme}}))}catch{}}
       function applyTheme(t){currentTheme=t; root.setAttribute('data-theme',t); dispatchChange(t);}
-      function saveToLocal(t){localStorage.setItem(LS_KEY,t);}
+      function saveToLocal(t){try{localStorage.setItem(LS_KEY,t)}catch{}}
 
-      (function(){ const ls=localStorage.getItem(LS_KEY); applyTheme(ls||getSystemPref()); })();
+      (function(){ const ls=(()=>{try{return localStorage.getItem(LS_KEY)}catch{return null}})(); applyTheme(ls||getSystemPref()); })();
       document.getElementById('themeBtn')?.addEventListener('click', ()=> ThemeManager?.toggle());
 
       ThemeManager = {
@@ -162,13 +162,124 @@
   <script>
     // Firebase
     const firebaseConfig={apiKey:"AIzaSyDOhTKHU4P3jJ7aTkvSiewNoHu1_KXkcrU",authDomain:"loginandsignin-4932b.firebaseapp.com",projectId:"loginandsignin-4932b",storageBucket:"loginandsignin-4932b.appspot.com",messagingSenderId:"863133586719",appId:"1:863133586719:web:81eb32db8e08e8d89e8c2a"};
-    firebase.initializeApp(firebaseConfig);
+    if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
     const auth=firebase.auth();
+    const db=firebase.firestore();
 
-    // Redirect target
-    const RET = new URLSearchParams(location.search).get('returnTo') || 'index.html';
+    // Kiểm tra trạng thái đăng nhập:
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        // đã đăng nhập -> chuyển thẳng đến quiz
+        location.replace('quiz_ai_assistant_app.html');
+      } else {
+        // chưa đăng nhập -> hiển thị trang
+        document.body.style.visibility = 'visible';
+      }
+    });
+  </script>
 
-    // Modal helpers
+  <!-- LangSync (i18n Firestore + fallback + placeholder) -->
+  <script>
+  (function LangSyncLogin(){
+    const LS_KEY='app-lang';
+    const bc=('BroadcastChannel' in window)?new BroadcastChannel('lang-sync'):null;
+    const sel=document.getElementById('langSelect');
+    const dictCache={};
+    let current=null, uid=null, unsub=null, suppress=false;
+
+    const fallback={
+      vi:{
+        titlePage:'Đăng Nhập',
+        loginTitle:'Đăng nhập',
+        continueSubtitle:'Tiếp tục hành trình của bạn',
+        emailLabel:'Email',
+        emailPh:'email@domain.com',
+        passwordLabel:'Mật khẩu',
+        passwordPh:'•••••••',
+        loginBtn:'Đăng nhập',
+        guestBtn:'Tiếp tục với tư cách khách',
+        forgot:'Quên mật khẩu?',
+        signup:'Đăng ký',
+        close:'Đóng',
+        processing:'Đang xử lý...',
+        successTitle:'Thành công!',
+        successMsg:'Đăng nhập thành công! Đang chuyển hướng...',
+        errorTitle:'Lỗi',
+        errorLogin:'Lỗi đăng nhập: '
+      },
+      en:{
+        titlePage:'Sign In',
+        loginTitle:'Sign in',
+        continueSubtitle:'Continue your journey',
+        emailLabel:'Email',
+        emailPh:'email@domain.com',
+        passwordLabel:'Password',
+        passwordPh:'•••••••',
+        loginBtn:'Sign in',
+        guestBtn:'Continue as guest',
+        forgot:'Forgot password?',
+        signup:'Sign up',
+        close:'Close',
+        processing:'Processing...',
+        successTitle:'Success!',
+        successMsg:'Signed in successfully! Redirecting...',
+        errorTitle:'Error',
+        errorLogin:'Sign-in error: '
+      }
+    };
+
+    function sys(){ const n=(navigator.language||'vi').toLowerCase(); return n.startsWith('vi')?'vi':'en'; }
+    function getLocal(){ try{return localStorage.getItem(LS_KEY)}catch{return null} }
+    function setLocal(v){ try{ localStorage.setItem(LS_KEY,v) }catch{} }
+
+    async function loadDict(lang){
+      if(dictCache[lang]) return dictCache[lang];
+      try{
+        const snap=await db.collection('i18n').doc(lang).get();
+        if(snap.exists){ dictCache[lang]={...fallback[lang], ...(snap.data()||{})}; return dictCache[lang]; }
+      }catch(e){}
+      dictCache[lang]=fallback[lang]||{}; return dictCache[lang];
+    }
+
+    function applyDict(d){
+      document.querySelectorAll('[data-i18n]').forEach(el=>{
+        const k=el.getAttribute('data-i18n');
+        if(k && d[k]!=null) el.textContent=d[k];
+      });
+      document.querySelectorAll('[data-i18n-ph]').forEach(el=>{
+        const k=el.getAttribute('data-i18n-ph');
+        if(k && d[k]!=null) el.setAttribute('placeholder', d[k]);
+      });
+      if(d.titlePage) document.title=d.titlePage;
+    }
+
+    async function applyLang(lang){
+      current=lang; if(sel) sel.value=lang; setLocal(lang);
+      const d=await loadDict(lang); window.__i18n=d; applyDict(d);
+      if(bc) bc.postMessage({type:'lang-applied', lang});
+      try{ window.dispatchEvent(new CustomEvent('langchange', {detail:{lang}})); }catch{}
+    }
+
+    window.LangManager={
+      get(){ return current || getLocal() || sys(); },
+      async set(lang){ if(!lang)return; await applyLang(lang); },
+      t(k,fb){ const d=window.__i18n||{}; return d[k]!=null?d[k]:(fb||''); }
+    };
+
+    sel?.addEventListener('change', e=> window.LangManager.set(e.target.value));
+
+    (async()=>{ const init=getLocal()||sys(); await applyLang(init); })();
+
+    // Đồng bộ theo tài khoản nếu muốn trong tương lai (đăng nhập mới set)
+    auth.onAuthStateChanged(async user=>{
+      // không ép đồng bộ cloud ở trang login để tránh chồng chéo prefs khi vừa sign-in
+      // (các trang đã đăng nhập như index/library sẽ lo phần này)
+    });
+  })();
+  </script>
+
+  <!-- Logic đăng nhập + thông báo (dùng i18n) -->
+  <script>
     function showNotification(title,message,type='success'){
       const m=document.getElementById('notification-modal');
       document.getElementById('notification-title').textContent=title;
@@ -179,87 +290,77 @@
     }
     function closeModal(id){document.getElementById(id).classList.add('hidden');}
 
-    // Đăng nhập email/password (giữ nguyên)
     document.getElementById('login-form').addEventListener('submit', async e=>{
       e.preventDefault();
       const btn=document.getElementById('login-btn');
       btn.disabled=true;
-      btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
+      btn.innerHTML=`<i class="fas fa-spinner fa-spin"></i> ${LangManager.t('processing','Đang xử lý...')}`;
       const email=document.getElementById('email').value.trim();
       const password=document.getElementById('password').value;
 
       try{
         await auth.signInWithEmailAndPassword(email,password);
-        showNotification('Thành công!','Đăng nhập thành công! Đang chuyển hướng...','success');
-        setTimeout(()=>location.replace(RET), 900);
+        showNotification(LangManager.t('successTitle','Thành công!'), LangManager.t('successMsg','Đăng nhập thành công! Đang chuyển hướng...'), 'success');
+        setTimeout(()=>location.replace('quiz_ai_assistant_app.html'), 1200);
       }catch(error){
-        showNotification('Lỗi','Lỗi đăng nhập: '+error.message,'error');
-        document.body.style.visibility='visible';
+        showNotification(LangManager.t('errorTitle','Lỗi'), LangManager.t('errorLogin','Lỗi đăng nhập: ')+(error?.message||''), 'error');
       }finally{
         btn.disabled=false;
-        btn.innerHTML='<img src="assets/sign-in.svg" class="icon" alt="login"> Đăng nhập';
+        btn.innerHTML=`<img src="assets/sign-in.svg" class="icon" alt="login"> <span data-i18n="loginBtn">${LangManager.t('loginBtn','Đăng nhập')}</span>`;
+        document.body.style.visibility = 'visible';
       }
     });
 
-    // SSO providers
-    const googleProvider   = new firebase.auth.GoogleAuthProvider();
-    const githubProvider   = new firebase.auth.GithubAuthProvider();
-    const microsoftProvider= new firebase.auth.OAuthProvider('microsoft.com');
-
-    // scope gợi ý (có thể bớt/đổi)
-    githubProvider.addScope('user:email');
-    microsoftProvider.setCustomParameters({ prompt: 'select_account' });
-    // microsoftProvider.addScope('User.Read'); // nếu cần
-
-    async function signInWithProvider(providerName){
-      const btn = document.getElementById(providerName+'Btn');
-      if(btn){ btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang mở ' + providerName + '…'; }
-      const provider =
-        providerName==='google'   ? googleProvider :
-        providerName==='github'   ? githubProvider :
-        providerName==='microsoft'? microsoftProvider : null;
-      if(!provider) return;
-
-      try{
-        // Popup trước, nếu bị chặn sẽ fallback redirect
-        await auth.signInWithPopup(provider);
-        location.replace(RET);
-      }catch(err){
-        // Một số trình duyệt/mobile chặn popup
-        if(err && /popup/i.test(err.message||'')){
-          try{
-            await auth.signInWithRedirect(provider);
-          }catch(e2){
-            showNotification('Lỗi', 'Không thể mở xác thực: '+(e2.message||e2), 'error');
-          }
-        }else{
-          showNotification('Lỗi', (err?.message || err), 'error');
-        }
-      }finally{
-        if(btn){ btn.disabled=false;
-          const label = providerName==='google'?'Đăng nhập bằng Google':providerName==='github'?'Đăng nhập bằng GitHub':'Đăng nhập bằng Microsoft';
-          btn.innerHTML = (providerName==='google' ? '<i class="fa-brands fa-google"></i> ' :
-                           providerName==='github' ? '<i class="fa-brands fa-github"></i> ' :
-                           '<i class="fa-brands fa-microsoft"></i> ') + label;
-        }
-      }
-    }
-
-    document.getElementById('googleBtn').addEventListener('click', ()=> signInWithProvider('google'));
-    document.getElementById('githubBtn').addEventListener('click', ()=> signInWithProvider('github'));
-    document.getElementById('microsoftBtn').addEventListener('click', ()=> signInWithProvider('microsoft'));
-
-    function continueAsGuest(){ location.href = RET; }
-
-    // Khi đã đăng nhập thì tự vào RET
-    auth.onAuthStateChanged(user => {
-      if (user) location.replace(RET);
-      else document.body.style.visibility='visible';
-    });
+    function continueAsGuest(){ location.href='quiz_ai_assistant_app.html'; }
 
     // Đóng modal khi click nền hoặc nhấn ESC
     document.addEventListener('click',e=>{const m=document.getElementById('notification-modal'); if(e.target===m) closeModal('notification-modal');});
     document.addEventListener('keydown',e=>{const m=document.getElementById('notification-modal'); if(e.key==='Escape' && !m.classList.contains('hidden')) closeModal('notification-modal');});
+  </script>
+
+  <!-- ===== Username Validator (chặn Unicode, chỉ ASCII) ===== -->
+  <script>
+    (function UsernameValidatorInit(){
+      const NO_UNICODE_RE = /^[\x20-\x7E]+$/;
+      const USERNAME_ASCII_RE = /^(?!.*\..*)(?!.*__)(?!.*--)[A-Za-z0-9](?:[A-Za-z0-9._-]{0,28}[A-Za-z0-9])$/;
+      function validateUsernameValue(val){
+        const s = (val||"").trim();
+        if(!NO_UNICODE_RE.test(s)) return { ok:false, msg:"Chỉ cho phép ASCII, không ký tự Unicode." };
+        if(!USERNAME_ASCII_RE.test(s)) return { ok:false, msg:"2–30 ký tự: A–Z a–z 0–9 . _ -, không đầu/cuối bằng . _ -, không có .. __ --" };
+        return { ok:true, msg:"" };
+      }
+      function attach(el){
+        if(!el || el._usernameValidatorBound) return;
+        el._usernameValidatorBound = true;
+        el.setAttribute("autocomplete","username");
+        el.setAttribute("spellcheck","false");
+        el.setAttribute("autocapitalize","off");
+        el.setAttribute("minlength","2");
+        el.setAttribute("maxlength","30");
+        el.addEventListener("input", () => {
+          const {ok, msg} = validateUsernameValue(el.value);
+          el.setCustomValidity(ok ? "" : msg);
+          el.reportValidity();
+        });
+        el.form?.addEventListener("submit", (e) => {
+          const {ok, msg} = validateUsernameValue(el.value);
+          if(!ok){ e.preventDefault(); el.setCustomValidity(msg); el.reportValidity(); el.focus(); }
+          else { el.setCustomValidity(""); }
+        });
+      }
+      document.querySelectorAll('input[name="username"], [data-username]').forEach(attach);
+      const obs = new MutationObserver((mutations)=>{
+        mutations.forEach(m=>{
+          m.addedNodes.forEach(node=>{
+            if(!(node instanceof Element)) return;
+            if(node.matches?.('input[name="username"], [data-username]')) attach(node);
+            node.querySelectorAll?.('input[name="username"], [data-username]').forEach(attach);
+          });
+        });
+      });
+      obs.observe(document.documentElement, {childList:true, subtree:true});
+      window.UsernameValidator = { validateRaw:(v)=>validateUsernameValue(v), regex:{NO_UNICODE_RE, USERNAME_ASCII_RE}, attach };
+    })();
   </script>
 </body>
 </html>
