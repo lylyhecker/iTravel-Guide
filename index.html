@@ -422,14 +422,25 @@
     currentPlace = PLACES.find(p=>p.id==='dai-noi-hue') || PLACES[0] || null;
     if(currentPlace) sel.value=currentPlace.id;
   }
-  async function loadReadForCurrent(){
-    currentReadText='';
-    if(currentPlace?.read_url){
-      try{ const r=await fetch(currentPlace.read_url, {cache:'no-store'}); currentReadText=await r.text(); }catch{}
+  async function loadReadForCurrent() {
+    currentReadText = '';
+    const lang = LangManager.get();
+    const url = (lang === 'en' && currentPlace.read_url_en) 
+                  ? currentPlace.read_url_en 
+                  : currentPlace.read_url;
+
+    if (url) {
+      try {
+        const r = await fetch(url, {cache:'no-store'});
+        currentReadText = await r.text();
+      } catch(e) {}
     }
-    if(!currentReadText) currentReadText=currentPlace?.intro||'';
-    $('#intro').textContent=currentReadText;
+    if (!currentReadText) {
+      currentReadText = (lang === 'en' ? currentPlace.intro_en : currentPlace.intro) || '';
+    }
+    document.getElementById('intro').textContent = currentReadText;
   }
+
   function initMap(){
     map=L.map('map').setView([16.46974,107.57969],13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
