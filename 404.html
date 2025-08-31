@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>404 - Không tìm thấy trang</title>
+  <meta name="description" content="Trang 404 cho iTravel Guide" />
 
-  <!-- Favicon SVG -->
-  <link id="favicon" rel="icon" type="image/svg+xml" href="assets/favicon-light.svg">
+  <!-- Favicon theo theme -->
+  <link id="favicon" rel="icon" type="image/svg+xml" href="assets/favicon-light.svg" />
 
+  <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <style>
     :root{ --bg:#0b1020; --bg-soft:#11162a; --card:#121a33; --text:#e7ecf7; --muted:#a8b2d1; --primary:#7aa2ff; --primary-strong:#5a86ff; --ok:#22c55e; --err:#ef4444; --border:rgba(255,255,255,.08); --shadow:0 10px 30px rgba(0,0,0,.25); }
@@ -19,143 +20,291 @@
     :root[data-theme="light"]{ --bg:#f6f8fa; --bg-soft:#eef1f6; --card:#ffffff; --text:#111827; --muted:#6b7280; --primary:#2563eb; --primary-strong:#1e40af; --ok:#16a34a; --err:#dc2626; --border:rgba(0,0,0,.08); --shadow:0 10px 30px rgba(0,0,0,.08); }
     :root[data-theme="dark"]{ --bg:#0b1020; --bg-soft:#11162a; --card:#121a33; --text:#e7ecf7; --muted:#a8b2d1; --primary:#7aa2ff; --primary-strong:#5a86ff; --ok:#22c55e; --err:#ef4444; --border:rgba(255,255,255,.08); --shadow:0 10px 30px rgba(0,0,0,.25); }
 
-    html,body{height:100%}
-    body{
-      margin:0; color:var(--text);
-      font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial;
-      background:
-        radial-gradient(1200px 600px at 10% -10%, rgba(122,162,255,.18), transparent 60%),
-        radial-gradient(900px 500px at 110% 10%, rgba(125,211,252,.16), transparent 60%),
-        var(--bg);
-    }
+    body{margin:0; color:var(--text); font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial;
+      background: radial-gradient(1200px 600px at 10% -10%, rgba(122,162,255,.18), transparent 60%),
+                  radial-gradient(900px 500px at 110% 10%, rgba(125,211,252,.16), transparent 60%), var(--bg);}
+
     .card{ background:var(--card); color:var(--text); border:1px solid var(--border); border-radius:18px; box-shadow:var(--shadow); }
     .btn{ appearance:none; border:none; cursor:pointer; background:var(--primary); color:#fff; font-weight:700; padding:10px 14px; border-radius:12px; transition:transform .12s ease, background .2s ease; box-shadow:0 6px 18px rgba(37,99,235,.25); display:inline-flex; align-items:center; gap:8px; justify-content:center; text-decoration:none; }
     .btn:hover{ transform:translateY(-1px); background:var(--primary-strong); }
     .btn.secondary{ background:transparent; color:var(--text); border:1px solid var(--border); box-shadow:none; }
     .btn.secondary:hover{ background:var(--bg-soft); }
-    .icon{width:18px;height:18px;object-fit:contain;display:inline-block}
+    .icon{width:18px;height:18px;object-fit:contain;display:inline-block;vertical-align:-0.2em}
+    .icon.themable{ filter:none; transition:filter .2s ease; }
+    :root[data-theme="dark"] img.icon.themable{ filter: invert(1) brightness(1.1) contrast(1.05); }
+    .muted{ color: var(--muted); }
   </style>
 </head>
-<body>
-  <!-- Nút đổi theme -->
-  <div class="fixed top-2 right-2">
+<body class="min-h-screen flex items-center justify-center px-4">
+  <!-- Top-right controls -->
+  <div class="fixed top-3 right-3 flex items-center gap-2">
+    <!-- Theme toggle -->
     <button class="btn secondary" id="themeBtn" title="Đổi giao diện">
       <img id="themeIcon" src="assets/theme-light.svg" class="icon" alt="theme">
     </button>
+    <!-- Language select -->
+    <select id="langSelect" class="btn secondary" title="Language">
+      <option value="vi">🇻🇳 VI</option>
+      <option value="en">🇬🇧 EN</option>
+    </select>
   </div>
 
-  <main class="min-h-screen flex items-center justify-center p-5">
-    <section class="card max-w-xl w-full p-8 text-center">
-      <img src="assets/404.svg" class="w-16 h-16 mx-auto mb-4" alt="not-found">
-      <h1 class="text-5xl font-extrabold">404</h1>
-      <h2 class="text-2xl font-semibold mt-2 muted">Ôi không! Trang không tìm thấy</h2>
-      <p class="mt-4 muted">
-        Có vẻ bạn đã lạc đường trong hành trình! Trang bạn đang tìm không tồn tại.
-        Hãy kiểm tra lại URL hoặc quay về trang chủ để tiếp tục khám phá.
-      </p>
-      <div class="mt-6 flex items-center justify-center gap-3 flex-wrap">
-        <a href="index.html" class="btn">
-          <img src="assets/homepage.svg" class="icon" alt="home"> Trang chủ
-        </a>
-        <a href="login.html" class="btn secondary">
-          <img src="assets/user.svg" class="icon" alt="login"> Đăng nhập
-        </a>
-      </div>
-    </section>
+  <!-- Main 404 content -->
+  <main class="card w-full max-w-2xl p-8 text-center">
+    <h1 class="text-5xl font-extrabold">404</h1>
+    <h2 class="text-2xl font-semibold mt-2 muted" data-i18n="oops">Ôi không! Trang không tìm thấy</h2>
+    <p class="mt-4 muted" data-i18n="desc">
+      Có vẻ bạn đã lạc đường trong hành trình! Trang bạn đang tìm không tồn tại.
+      Hãy kiểm tra lại URL hoặc quay về trang chủ để tiếp tục khám phá.
+    </p>
+
+    <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
+      <a href="index.html" class="btn">
+        <img src="assets/homepage.svg" class="icon themable" alt="home">
+        <span data-i18n="home">Trang chủ</span>
+      </a>
+      <a href="login.html" class="btn secondary">
+        <img src="assets/user.svg" class="icon themable" alt="login">
+        <span data-i18n="login">Đăng nhập</span>
+      </a>
+    </div>
   </main>
 
-  <!-- Firebase compat -->
+  <!-- Firebase (compat) -->
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
   <script>
-    const firebaseConfig={apiKey:"AIzaSyDOhTKHU4P3jJ7aTkvSiewNoHu1_KXkcrU",authDomain:"loginandsignin-4932b.firebaseapp.com",projectId:"loginandsignin-4932b",storageBucket:"loginandsignin-4932b.appspot.com",messagingSenderId:"863133586719",appId:"1:863133586719:web:81eb32db8e08e8d89e8c2a"};
-    if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-  </script>
-
-  <!-- ThemeSync v3: đồng bộ theme theo tài khoản (giữ nguyên UI hiện có) -->
-  <script>
-  (function ThemeSyncV3(){
-    const LS_KEY='voucher-theme';
-    const root=document.documentElement;
-    const bc=('BroadcastChannel' in window)?new BroadcastChannel('theme-sync'):null;
-
-    let current=null, uid=null, unsubUser=null, suppressNext=false;
-
-    const getSystem=()=> (matchMedia && matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
-    function dispatchChange(theme){ try{window.dispatchEvent(new CustomEvent('themechange',{detail:{theme}}))}catch{} }
-    function applyTheme(t){
-      current=t;
-      t?root.setAttribute('data-theme',t):root.removeAttribute('data-theme');
-      // icon & favicon
-      const icon=document.getElementById('themeIcon');
-      if(icon){ icon.src = t==='dark'?'assets/theme-dark.svg':'assets/theme-light.svg'; icon.alt = t==='dark'?'Dark':'Light'; }
-      const fav=document.getElementById('favicon');
-      if(fav){ fav.href = t==='dark'?'assets/favicon-dark.svg':'assets/favicon-light.svg'; fav.href=fav.href.split('?')[0]+'?v='+Date.now(); }
-      dispatchChange(t);
-      if(bc) bc.postMessage({type:'theme-applied', theme:t});
-    }
-    function getLocal(){ try{return localStorage.getItem(LS_KEY)}catch{return null} }
-    function setLocal(t){ try{ localStorage.setItem(LS_KEY,t) }catch{} }
-
-    async function setRemoteTheme(t){
-      if(!uid) return;
-      suppressNext=true;
-      try{
-        await firebase.firestore().collection('users').doc(uid).set({
-          prefs:{ theme:t, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }
-        }, {merge:true});
-      }finally{
-        setTimeout(()=> suppressNext=false, 250);
-      }
-    }
-
-    // API để nút bấm gọi
-    window.ThemeManager={
-      getTheme(){ return current || root.getAttribute('data-theme') || getLocal() || getSystem(); },
-      async setTheme(t){ if(t!=='light'&&t!=='dark')return; applyTheme(t); setLocal(t); await setRemoteTheme(t); },
-      async toggle(){ const next=this.getTheme()==='dark'?'light':'dark'; await this.setTheme(next); }
+    /* ===================== Firebase init (same as index.html) ===================== */
+    const firebaseConfig={
+      apiKey:"AIzaSyDOhTKHU4P3jJ7aTkvSiewNoHu1_KXkcrU",
+      authDomain:"loginandsignin-4932b.firebaseapp.com",
+      projectId:"loginandsignin-4932b",
+      storageBucket:"loginandsignin-4932b.appspot.com",
+      messagingSenderId:"863133586719",
+      appId:"1:863133586719:web:81eb32db8e08e8d89e8c2a"
     };
-    document.getElementById('themeBtn')?.addEventListener('click', ()=> window.ThemeManager.toggle());
+    if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const auth=firebase.auth();
+    const db=firebase.firestore();
 
-    // Sync đa tab
-    if(bc){
-      bc.onmessage=(ev)=>{ if(ev?.data?.type==='theme-applied'){ const t=ev.data.theme; if(t && t!==current) applyTheme(t); } };
-    }
+    /* ===================== ThemeSync v3 (reuse logic like index.html) ===================== */
+    (function ThemeSyncV3(){
+      const LS_KEY='voucher-theme';
+      const root=document.documentElement;
+      const bc=('BroadcastChannel' in window)?new BroadcastChannel('theme-sync'):null;
 
-    // Áp theme ban đầu (khách)
-    applyTheme(getLocal() || getSystem());
+      let current=null, uid=null, unsubUser=null, suppressNext=false;
 
-    // Login → đồng bộ theo tài khoản
-    firebase.auth().onAuthStateChanged(async (user)=>{
-      if(unsubUser){ unsubUser(); unsubUser=null; }
-      uid = user?.uid || null;
+      const getSystem=()=> (matchMedia && matchMedia('(prefers-color-scheme: light)').matches)?'light':'dark';
+      function dispatchChange(theme){ try{window.dispatchEvent(new CustomEvent('themechange',{detail:{theme}}))}catch{} }
+      function applyTheme(t){
+        current=t;
+        t?root.setAttribute('data-theme',t):root.removeAttribute('data-theme');
+        // icon & favicon
+        const icon=document.getElementById('themeIcon');
+        if(icon){ icon.src = t==='dark'?'assets/theme-dark.svg':'assets/theme-light.svg'; icon.alt = t==='dark'?'Dark':'Light'; }
+        const fav=document.getElementById('favicon');
+        if(fav){ fav.href = t==='dark'?'assets/favicon-dark.svg':'assets/favicon-light.svg'; fav.href=fav.href.split('?')[0]+'?v='+Date.now(); }
+        dispatchChange(t);
+        if(bc) bc.postMessage({type:'theme-applied', theme:t});
+      }
+      function getLocal(){ try{return localStorage.getItem(LS_KEY)}catch{return null} }
+      function setLocal(t){ try{ localStorage.setItem(LS_KEY,t) }catch{} }
 
-      if(!uid){ applyTheme(getLocal() || getSystem()); return; }
-
-      const userRef=firebase.firestore().collection('users').doc(uid);
-      const snap=await userRef.get();
-      let remoteTheme = snap.exists ? (snap.data()?.prefs?.theme || null) : null;
-
-      if(!remoteTheme){
-        remoteTheme = getLocal() || getSystem();
-        applyTheme(remoteTheme);
-        setLocal(remoteTheme);
-        await setRemoteTheme(remoteTheme);
-      }else{
-        setLocal(remoteTheme);
-        applyTheme(remoteTheme);
+      async function setRemoteTheme(t){
+        if(!uid) return;
+        suppressNext=true;
+        try{
+          await firebase.firestore().collection('users').doc(uid).set({
+            prefs:{ theme:t, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }
+          }, {merge:true});
+        }finally{
+          setTimeout(()=> suppressNext=false, 250);
+        }
       }
 
-      unsubUser = userRef.onSnapshot(s=>{
-        if(!s.exists) return;
-        const t=s.data()?.prefs?.theme;
-        if(!t) return;
-        if(suppressNext) return;
-        if(t!==current){ setLocal(t); applyTheme(t); }
+      // API để nút bấm gọi
+      window.ThemeManager={
+        getTheme(){ return current || root.getAttribute('data-theme') || getLocal() || getSystem(); },
+        async setTheme(t){ if(t!=='light'&&t!=='dark')return; applyTheme(t); setLocal(t); await setRemoteTheme(t); },
+        async toggle(){ const next=this.getTheme()==='dark'?'light':'dark'; await this.setTheme(next); }
+      };
+      document.getElementById('themeBtn')?.addEventListener('click', ()=> window.ThemeManager.toggle());
+
+      // Sync đa tab
+      const bcInst = bc;
+      if(bcInst){
+        bcInst.onmessage=(ev)=>{ if(ev?.data?.type==='theme-applied'){ const t=ev.data.theme; if(t && t!==current) applyTheme(t); } };
+      }
+
+      // Áp theme ban đầu (khách)
+      applyTheme(getLocal() || getSystem());
+
+      // Login → đồng bộ theo tài khoản
+      firebase.auth().onAuthStateChanged(async (user)=>{
+        if(unsubUser){ unsubUser(); unsubUser=null; }
+        uid = user?.uid || null;
+
+        if(!uid){ applyTheme(getLocal() || getSystem()); return; }
+
+        const userRef=firebase.firestore().collection('users').doc(uid);
+        const snap=await userRef.get();
+        let remoteTheme = snap.exists ? (snap.data()?.prefs?.theme || null) : null;
+
+        if(!remoteTheme){
+          remoteTheme = getLocal() || getSystem();
+          applyTheme(remoteTheme);
+          setLocal(remoteTheme);
+          await setRemoteTheme(remoteTheme);
+        }else{
+          setLocal(remoteTheme);
+          applyTheme(remoteTheme);
+        }
+
+        unsubUser = userRef.onSnapshot(s=>{
+          if(!s.exists) return;
+          const t=s.data()?.prefs?.theme;
+          if(!t) return;
+          if(suppressNext) return;
+          if(t!==current){ setLocal(t); applyTheme(t); }
+        });
       });
-    });
-  })();
+    })();
+
+    /* ===================== LangSync (Firestore i18n) for 404 ===================== */
+    (function LangSync404(){
+      const LS_KEY_LANG = 'app-lang';
+      const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('lang-sync') : null;
+      const sel = document.getElementById('langSelect');
+
+      let uid = null, current = null, unsubUser = null, suppressNext = false;
+      const dictCache = {};
+
+      // Fallback tối thiểu (nếu Firestore chưa có key)
+      const fallback = {
+        vi: {
+          title404: '404 - Không tìm thấy trang',
+          oops: 'Ôi không! Trang không tìm thấy',
+          desc: 'Có vẻ bạn đã lạc đường trong hành trình! Trang bạn đang tìm không tồn tại. Hãy kiểm tra lại URL hoặc quay về trang chủ để tiếp tục khám phá.',
+          home: 'Trang chủ',
+          login: 'Đăng nhập'
+        },
+        en: {
+          title404: '404 - Page Not Found',
+          oops: 'Oops! Page not found',
+          desc: 'Looks like you took a wrong turn. The page you’re looking for doesn’t exist. Check the URL or head back to the homepage.',
+          home: 'Home',
+          login: 'Sign in'
+        }
+      };
+
+      function sys(){ const n=(navigator.language||'vi').toLowerCase(); return n.startsWith('vi')?'vi':'en'; }
+      function getLocal(){ try{return localStorage.getItem(LS_KEY_LANG)}catch{return null} }
+      function setLocal(v){ try{ localStorage.setItem(LS_KEY_LANG, v) }catch{} }
+
+      async function loadDict(lang){
+        if (dictCache[lang]) return dictCache[lang];
+        try{
+          const snap = await db.collection('i18n').doc(lang).get();
+          if (snap.exists){
+            dictCache[lang] = { ...fallback[lang], ...(snap.data()||{}) };
+            return dictCache[lang];
+          }
+        }catch(e){}
+        dictCache[lang] = fallback[lang] || {};
+        return dictCache[lang];
+      }
+
+      function applyDict(dict){
+        if(!dict) return;
+        document.querySelectorAll('[data-i18n]').forEach(el=>{
+          const k = el.getAttribute('data-i18n');
+          if(k && dict[k]!=null) el.textContent = dict[k];
+        });
+        if (dict.title404) document.title = dict.title404;
+        // cập nhật title cho nút (optional)
+        const loginBtn = document.querySelector('a[href="login.html"]');
+        if (loginBtn && dict.login) loginBtn.title = dict.login;
+      }
+
+      async function applyLang(lang){
+        current = lang;
+        if (sel) sel.value = lang;
+        setLocal(lang);
+        const dict = await loadDict(lang);
+        window.__i18n = dict;
+        applyDict(dict);
+        if (bc) bc.postMessage({ type:'lang-applied', lang });
+        try{ window.dispatchEvent(new CustomEvent('langchange', { detail:{ lang } })); }catch{}
+      }
+
+      async function setRemote(lang){
+        if(!uid) return;
+        suppressNext = true;
+        try{
+          await db.collection('users').doc(uid).set({
+            prefs: { lang, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }
+          }, { merge: true });
+        } finally {
+          setTimeout(()=> suppressNext=false, 250);
+        }
+      }
+
+      window.LangManager = {
+        get(){ return current || getLocal() || sys(); },
+        async set(lang){ if(!lang) return; await applyLang(lang); await setRemote(lang); },
+        t(k, fb){ const d=window.__i18n||{}; return (d[k]!=null?d[k]:(fb||'')); }
+      };
+
+      sel?.addEventListener('change', e=> window.LangManager.set(e.target.value));
+
+      // Khởi tạo
+      (async ()=>{
+        const initial = getLocal() || sys();
+        await applyLang(initial);
+      })();
+
+      // Đồng bộ theo tài khoản (nếu có đăng nhập)
+      auth.onAuthStateChanged(async (user)=>{
+        if (unsubUser){ unsubUser(); unsubUser=null; }
+        uid = user?.uid || null;
+
+        if (!uid){ const lang = getLocal() || sys(); await applyLang(lang); return; }
+
+        const userRef = db.collection('users').doc(uid);
+        const snap = await userRef.get();
+        let remote = snap.exists ? (snap.data()?.prefs?.lang || null) : null;
+
+        if (!remote){
+          remote = getLocal() || sys();
+          await applyLang(remote);
+          await setRemote(remote);
+        } else {
+          setLocal(remote);
+          await applyLang(remote);
+        }
+
+        unsubUser = userRef.onSnapshot(s=>{
+          if (!s.exists) return;
+          const v = s.data()?.prefs?.lang;
+          if (!v) return;
+          if (suppressNext) return;
+          if (v !== current){ setLocal(v); applyLang(v); }
+        });
+      });
+
+      // Nhận sync đa tab
+      if (bc){
+        bc.onmessage = (ev)=>{
+          if (ev?.data?.type === 'lang-applied'){
+            const lang = ev.data.lang;
+            if (lang && lang !== current){ applyLang(lang); }
+          }
+        };
+      }
+    })();
   </script>
 
   <!-- Username Validator (chặn Unicode, chỉ ASCII) -->
