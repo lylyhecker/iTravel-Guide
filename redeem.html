@@ -75,15 +75,15 @@
           <img src="assets/gift.svg" class="icon" alt="">
         </div>
         <div>
-          <h1 class="text-lg font-extrabold">Đổi quà</h1>
-          <div class="text-xs muted" id="statusSub">Chọn quà để đổi</div>
+          <h1 class="text-lg font-extrabold" data-i18n="redeemTitle">Đổi quà</h1>
+          <div class="text-xs muted" id="statusSub" data-i18n="subTitle">Chọn quà để đổi</div>
         </div>
       </div>
 
-      <!-- User + số dư (Điểm/XP) -->
+      <!-- User + số dư (Điểm/XP) + controls -->
       <div class="flex items-center gap-4 flex-wrap">
         <div class="text-right">
-          <div id="userName" class="font-bold">Khách</div>
+          <div id="userName" class="font-bold" data-i18n="guestName">Khách</div>
           <div id="userStatsLine" class="text-sm muted"></div>
           <div id="balance-wrap" class="mt-1" style="display:none">
             <div id="balance-bar"><div id="balance-fill"></div></div>
@@ -91,8 +91,12 @@
           </div>
         </div>
 
-        <a class="btn secondary" href="library.html"><img src="assets/book.svg" class="icon" alt=""> Thư viện</a>
+        <a class="btn secondary" href="library.html"><img src="assets/book.svg" class="icon" alt=""> <span data-i18n="library">Thư viện</span></a>
         <button class="btn secondary" id="themeBtn" title="Đổi giao diện"><img id="themeIcon" class="icon" alt=""></button>
+        <select id="langSelect" class="btn secondary" title="Language">
+          <option value="vi">🇻🇳 VI</option>
+          <option value="en">🇬🇧 EN</option>
+        </select>
       </div>
     </div>
   </header>
@@ -100,7 +104,7 @@
   <!-- Main -->
   <main class="max-w-6xl mx-auto px-4 py-6">
     <section class="card p-5">
-      <h2 class="text-xl font-bold mb-3 flex items-center gap-2"><img src="assets/gift.svg" class="icon" alt=""> <span>Danh sách quà</span></h2>
+      <h2 class="text-xl font-bold mb-3 flex items-center gap-2"><img src="assets/gift.svg" class="icon" alt=""> <span data-i18n="listTitle">Danh sách quà</span></h2>
       <div id="gift-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
     </section>
   </main>
@@ -141,17 +145,17 @@
 
     // ========= User Info & Balance (Điểm hoặc XP) =========
     let currentUser=null;
-    let balanceLabel='Điểm';  // "Điểm" hoặc "XP"
+    let balanceLabel='Điểm';  // "Điểm" hoặc "XP" (sẽ được dịch theo lang)
     let balanceValue=0;       // số dư hiện dùng để đổi
     let hasPointsField=false; // true nếu user có 'points' trong Firestore
     let userLevel=1, userXP=0;
 
     // Sanitize tên như quiz
     function sanitizeUsername(name){
-      if (!name) return "Khach";
+      if (!name) return LangManager.t('guestName','Khách');
       const ascii = name.normalize("NFKD").replace(/[^\x00-\x7F]/g,"");
       const cleaned = ascii.replace(/\s+/g,"-").replace(/[^a-zA-Z0-9_-]/g,"");
-      return cleaned || "Khach";
+      return cleaned || LangManager.t('guestName','Khách');
     }
 
     async function loadUserStats(){
@@ -163,15 +167,15 @@
       // Ưu tiên 'points'. Nếu không có points mà có 'xp' => dùng XP
       if (typeof data.points === 'number'){
         hasPointsField = true;
-        balanceLabel = 'Điểm';
+        balanceLabel = LangManager.t('points','Điểm');
         balanceValue = Number(data.points || 0);
       } else if (typeof data.xp === 'number'){
         hasPointsField = false;
-        balanceLabel = 'XP';
+        balanceLabel = 'XP'; // giữ nguyên, quốc tế hoá trong UI bằng cách hiển thị "XP"
         balanceValue = Number(data.xp || 0);
       } else {
         hasPointsField = true; // mặc định tạo points
-        balanceLabel = 'Điểm';
+        balanceLabel = LangManager.t('points','Điểm');
         balanceValue = 0;
         // khởi tạo points=0 để lần sau dùng "Điểm"
         await ref.set({ points: 0 }, { merge:true });
@@ -189,7 +193,7 @@
 
       const parts=[];
       parts.push(`${balanceLabel}: ${balanceValue}`);
-      if (userLevel) parts.push(`Cấp: ${userLevel}`);
+      if (userLevel) parts.push(`${LangManager.t('level','Cấp')}: ${userLevel}`);
       $('userStatsLine').textContent = parts.join(' • ');
 
       const wrap = $('balance-wrap');
@@ -200,7 +204,7 @@
         const quota = 100; // hiển thị tiến độ theo mốc 100
         const pct = Math.max(0, Math.min(100, (balanceValue % quota) / quota * 100));
         bar.style.width = pct + '%';
-        txt.textContent = `Tiến độ: ${(balanceValue % quota)}/${quota} (${balanceLabel})`;
+        txt.textContent = `${LangManager.t('progress','Tiến độ')}: ${(balanceValue % quota)}/${quota} (${balanceLabel})`;
       }
     }
 
@@ -228,9 +232,9 @@
         card.innerHTML = `
           <div>
             <div class="font-bold">${g.name}</div>
-            <div class="muted text-sm">Giá: ${g.cost} ${balanceLabel.toLowerCase()}</div>
+            <div class="muted text-sm">${LangManager.t('price','Giá')}: ${g.cost} ${balanceLabel.toLowerCase()}</div>
           </div>
-          <button class="btn">Đổi</button>
+          <button class="btn">${LangManager.t('redeemNow','Đổi')}</button>
         `;
         card.querySelector('button').onclick = ()=> redeemGift(g);
         box.appendChild(card);
@@ -240,11 +244,16 @@
     // ========= Redeem flow =========
     async function redeemGift(gift){
       const u = auth.currentUser;
-      if(!u){ toast('Cần đăng nhập','Hãy đăng nhập trước khi đổi quà.','error', ()=> location.href='login.html'); return; }
+      if(!u){ toast(LangManager.t('needLoginTitle','Cần đăng nhập'), LangManager.t('needLoginMsg','Hãy đăng nhập trước khi đổi quà.'),'error', ()=> location.href='login.html'); return; }
 
       // Kiểm tra đủ số dư (points hoặc xp)
       if (balanceValue < gift.cost){
-        toast(`Không đủ ${balanceLabel.toLowerCase()}`, `Cần ${gift.cost} ${balanceLabel.toLowerCase()}, hiện có ${balanceValue}.`, 'error');
+        const notEnough = LangManager.t('notEnough','Không đủ {bal}').replace('{bal}', balanceLabel.toLowerCase());
+        const needMsg = LangManager.t('needAmount','Cần {need} {bal}, hiện có {have}.')
+                         .replace('{need}', gift.cost)
+                         .replace('{bal}', balanceLabel.toLowerCase())
+                         .replace('{have}', balanceValue);
+        toast(notEnough, needMsg, 'error');
         return;
       }
 
@@ -291,12 +300,12 @@
         // Cập nhật UI header
         applyUserHeader();
 
-        toast('Đổi thành công','Voucher đã được tạo.','success', ()=>{
+        toast(LangManager.t('redeemSuccess','Đổi thành công'), LangManager.t('voucherCreated','Voucher đã được tạo.'), 'success', ()=>{
           location.href = 'voucher.html?id=' + encodeURIComponent(voucherId);
         });
       }catch(e){
         console.error(e);
-        toast('Lỗi', e.message || 'Không thể đổi quà.', 'error');
+        toast(LangManager.t('error','Lỗi'), e.message || LangManager.t('redeemFail','Không thể đổi quà.'), 'error');
       }
     }
 
@@ -308,17 +317,17 @@
         await loadUserStats();
         renderGifts(); // re-render để cập nhật nhãn giá (điểm/xp)
       } else {
-        $('userName').textContent = 'Khách';
+        $('userName').textContent = LangManager.t('guestName','Khách');
         $('userStatsLine').textContent = '';
         $('balance-wrap').style.display = 'none';
-        balanceLabel='Điểm';
+        balanceLabel=LangManager.t('points','Điểm');
         balanceValue=0;
         renderGifts();
       }
     });
   </script>
 
-    <!-- ThemeSync v3: đồng bộ theme theo tài khoản (giữ nguyên UI hiện có) -->
+  <!-- ThemeSync v3: đồng bộ theme theo tài khoản (giữ nguyên UI hiện có) -->
   <script>
   (function ThemeSyncV3(){
     const LS_KEY='voucher-theme';
@@ -402,12 +411,145 @@
     });
   })();
   </script>
+
+  <!-- LangSync: i18n Firestore + fallback -->
+  <script>
+  (function LangSync(){
+    const LS_KEY = 'app-lang';
+    const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('lang-sync') : null;
+    const sel = document.getElementById('langSelect');
+    const dictCache = {};
+    let current = null, uid = null, unsubUser = null, suppressNext = false;
+
+    const fallback = {
+      vi: {
+        titlePage:'Đổi quà',
+        redeemTitle:'Đổi quà',
+        subTitle:'Chọn quà để đổi',
+        library:'Thư viện',
+        guestName:'Khách',
+        points:'Điểm',
+        level:'Cấp',
+        progress:'Tiến độ',
+        listTitle:'Danh sách quà',
+        price:'Giá',
+        redeemNow:'Đổi',
+        needLoginTitle:'Cần đăng nhập',
+        needLoginMsg:'Hãy đăng nhập trước khi đổi quà.',
+        notEnough:'Không đủ {bal}',
+        needAmount:'Cần {need} {bal}, hiện có {have}.',
+        redeemSuccess:'Đổi thành công',
+        voucherCreated:'Voucher đã được tạo.',
+        error:'Lỗi',
+        redeemFail:'Không thể đổi quà.'
+      },
+      en: {
+        titlePage:'Redeem',
+        redeemTitle:'Redeem',
+        subTitle:'Choose a reward to redeem',
+        library:'Library',
+        guestName:'Guest',
+        points:'Points',
+        level:'Level',
+        progress:'Progress',
+        listTitle:'Rewards list',
+        price:'Price',
+        redeemNow:'Redeem',
+        needLoginTitle:'Sign in required',
+        needLoginMsg:'Please sign in before redeeming.',
+        notEnough:'Not enough {bal}',
+        needAmount:'Need {need} {bal}, you have {have}.',
+        redeemSuccess:'Redeemed successfully',
+        voucherCreated:'Voucher has been created.',
+        error:'Error',
+        redeemFail:'Could not redeem.'
+      }
+    };
+
+    function sys(){ const n=(navigator.language||'vi').toLowerCase(); return n.startsWith('vi')?'vi':'en'; }
+    function getLocal(){ try{return localStorage.getItem(LS_KEY)}catch{return null} }
+    function setLocal(v){ try{ localStorage.setItem(LS_KEY, v) }catch{} }
+
+    async function loadDict(lang){
+      if (dictCache[lang]) return dictCache[lang];
+      try{
+        const snap = await db.collection('i18n').doc(lang).get();
+        if (snap.exists){ dictCache[lang] = { ...fallback[lang], ...(snap.data()||{}) }; return dictCache[lang]; }
+      }catch(e){}
+      dictCache[lang] = fallback[lang] || {}; return dictCache[lang];
+    }
+
+    function applyDict(dict){
+      document.querySelectorAll('[data-i18n]').forEach(el=>{
+        const k = el.getAttribute('data-i18n');
+        if (k && dict[k] != null) el.textContent = dict[k];
+      });
+      if (dict.titlePage) document.title = dict.titlePage;
+    }
+
+    async function applyLang(lang){
+      current = lang; if (sel) sel.value = lang; setLocal(lang);
+      const dict = await loadDict(lang); window.__i18n = dict; applyDict(dict);
+      if (bc) bc.postMessage({ type:'lang-applied', lang });
+      try{ window.dispatchEvent(new CustomEvent('langchange', { detail:{ lang } })); }catch{}
+    }
+
+    window.LangManager = {
+      get(){ return current || getLocal() || sys(); },
+      async set(lang){ if (!lang) return; await applyLang(lang); },
+      t(k, fb){ const d = window.__i18n || {}; return (d[k] != null ? d[k] : (fb||'')); }
+    };
+
+    sel?.addEventListener('change', e=> window.LangManager.set(e.target.value));
+
+    (async ()=>{ const initial = getLocal() || sys(); await applyLang(initial); })();
+
+    // Đồng bộ theo tài khoản
+    auth.onAuthStateChanged(async (user)=>{
+      if (unsubUser){ unsubUser(); unsubUser = null; }
+      uid = user?.uid || null;
+
+      if (!uid){ const lang = getLocal() || sys(); await applyLang(lang); return; }
+
+      const userRef = db.collection('users').doc(uid);
+      const snap = await userRef.get();
+      let remoteLang = snap.exists ? (snap.data()?.prefs?.lang || null) : null;
+
+      if (!remoteLang){
+        remoteLang = getLocal() || sys();
+        await applyLang(remoteLang);
+        try{ await userRef.set({ prefs:{ lang:remoteLang, updatedAt: firebase.firestore.FieldValue.serverTimestamp() } }, { merge:true }); }catch{}
+      } else {
+        setLocal(remoteLang);
+        await applyLang(remoteLang);
+      }
+
+      unsubUser = userRef.onSnapshot(s=>{
+        if (!s.exists) return;
+        const v = s.data()?.prefs?.lang; if (!v) return;
+        if (suppressNext) return;
+        if (v !== current){ setLocal(v); applyLang(v); }
+      });
+    });
+
+    // Sync đa tab
+    if (bc){
+      bc.onmessage = (ev)=>{
+        if (ev?.data?.type === 'lang-applied'){
+          const lang = ev.data.lang; if (lang && lang !== current) applyLang(lang);
+        }
+      };
+    }
+  })();
+  </script>
+
+  <script>
+    // ========= Theme icon =========
+    const themeIcon = document.getElementById('themeIcon');
+    if (themeIcon) {
+      themeIcon.src = window.ThemeManager.getTheme() === 'dark' ? 'assets/theme-dark.svg' : 'assets/theme-light.svg';
+      themeIcon.alt = window.ThemeManager.getTheme() === 'dark' ? 'Dark Mode' : 'Light Mode';
+    }
+  </script>
 </body>
 </html>
-<script>
-  // ========= Theme icon =========
-  const themeIcon = document.getElementById('themeIcon');
-  if (themeIcon) {
-    themeIcon.src = window.ThemeManager.getTheme() === 'dark' ? 'assets/theme-dark.svg' : 'assets/theme-light.svg';
-    themeIcon.alt = window.ThemeManager.getTheme() === 'dark' ? 'Dark Mode' : 'Light Mode';
-  }
