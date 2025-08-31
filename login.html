@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Đăng Nhập</title>
+  <title data-i18n="titlePage">Đăng nhập</title>
 
   <!-- Favicon SVG theo theme -->
   <link id="favicon" rel="icon" type="image/svg+xml" href="assets/favicon-light.svg" />
@@ -38,6 +38,8 @@
     .btn:hover{ transform:translateY(-1px); background:var(--primary-strong); }
     .btn.secondary{ background:transparent; color:var(--text); border:1px solid var(--border); box-shadow:none; width:auto; }
     .btn.secondary:hover{ background:var(--bg-soft); }
+    .btn.sso{ width:100%; background:transparent; border:1px solid var(--border); color:var(--text); box-shadow:none; }
+    .btn.sso:hover{ background:var(--bg-soft); }
     .input{ width:100%; padding:10px 12px; border-radius:12px; background:var(--card); color:var(--text); border:1px solid var(--border); outline:none; }
     .muted{ color:var(--muted); }
     .topbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
@@ -88,6 +90,13 @@
             <img src="assets/sign-in.svg" class="icon" alt="login"> <span data-i18n="loginBtn">Đăng nhập</span>
           </button>
         </form>
+
+        <!-- SSO Providers -->
+        <div class="mt-4 grid grid-cols-1 gap-2">
+          <button class="btn sso" id="googleBtn"><img src="assets/google.svg" class="icon" alt="google"> <span data-i18n="signinGoogle">Đăng nhập bằng Google</span></button>
+          <button class="btn sso" id="githubBtn"><img src="assets/github.svg" class="icon" alt="github"> <span data-i18n="signinGithub">Đăng nhập bằng GitHub</span></button>
+          <button class="btn sso" id="microsoftBtn"><img src="assets/microsoft.svg" class="icon" alt="microsoft"> <span data-i18n="signinMicrosoft">Đăng nhập bằng Microsoft</span></button>
+        </div>
 
         <div class="mt-4">
           <button id="guestBtn" onclick="continueAsGuest()" class="btn secondary">
@@ -166,11 +175,16 @@
     const auth=firebase.auth();
     const db=firebase.firestore();
 
+    function getReturnTo(){
+      try{ const u=new URL(location.href); return u.searchParams.get('returnTo'); }catch{return null}
+    }
+
     // Kiểm tra trạng thái đăng nhập:
     auth.onAuthStateChanged(user => {
       if (user) {
-        // đã đăng nhập -> chuyển thẳng đến quiz
-        location.replace('quiz_ai_assistant_app.html');
+        // đã đăng nhập -> chuyển tới returnTo hoặc index.html
+        const rt = getReturnTo();
+        location.replace(rt || 'index.html');
       } else {
         // chưa đăng nhập -> hiển thị trang
         document.body.style.visibility = 'visible';
@@ -205,7 +219,10 @@
         successTitle:'Thành công!',
         successMsg:'Đăng nhập thành công! Đang chuyển hướng...',
         errorTitle:'Lỗi',
-        errorLogin:'Lỗi đăng nhập: '
+        errorLogin:'Lỗi đăng nhập: ',
+        signinGoogle:'Đăng nhập bằng Google',
+        signinGithub:'Đăng nhập bằng GitHub',
+        signinMicrosoft:'Đăng nhập bằng Microsoft'
       },
       en:{
         titlePage:'Sign In',
@@ -224,7 +241,10 @@
         successTitle:'Success!',
         successMsg:'Signed in successfully! Redirecting...',
         errorTitle:'Error',
-        errorLogin:'Sign-in error: '
+        errorLogin:'Sign-in error: ',
+        signinGoogle:'Sign in with Google',
+        signinGithub:'Sign in with GitHub',
+        signinMicrosoft:'Sign in with Microsoft'
       }
     };
 
@@ -269,16 +289,10 @@
     sel?.addEventListener('change', e=> window.LangManager.set(e.target.value));
 
     (async()=>{ const init=getLocal()||sys(); await applyLang(init); })();
-
-    // Đồng bộ theo tài khoản nếu muốn trong tương lai (đăng nhập mới set)
-    auth.onAuthStateChanged(async user=>{
-      // không ép đồng bộ cloud ở trang login để tránh chồng chéo prefs khi vừa sign-in
-      // (các trang đã đăng nhập như index/library sẽ lo phần này)
-    });
   })();
   </script>
 
-  <!-- Logic đăng nhập + thông báo (dùng i18n) -->
+  <!-- Logic đăng nhập + thông báo (dùng i18n) + SSO -->
   <script>
     function showNotification(title,message,type='success'){
       const m=document.getElementById('notification-modal');
@@ -289,6 +303,8 @@
       m.classList.remove('hidden');
     }
     function closeModal(id){document.getElementById(id).classList.add('hidden');}
+
+    function destination(){ try{ const u=new URL(location.href); return u.searchParams.get('returnTo') || 'index.html'; }catch{return 'index.html'} }
 
     document.getElementById('login-form').addEventListener('submit', async e=>{
       e.preventDefault();
@@ -301,7 +317,7 @@
       try{
         await auth.signInWithEmailAndPassword(email,password);
         showNotification(LangManager.t('successTitle','Thành công!'), LangManager.t('successMsg','Đăng nhập thành công! Đang chuyển hướng...'), 'success');
-        setTimeout(()=>location.replace('quiz_ai_assistant_app.html'), 1200);
+        setTimeout(()=>location.replace(destination()), 900);
       }catch(error){
         showNotification(LangManager.t('errorTitle','Lỗi'), LangManager.t('errorLogin','Lỗi đăng nhập: ')+(error?.message||''), 'error');
       }finally{
@@ -311,56 +327,46 @@
       }
     });
 
-    function continueAsGuest(){ location.href='quiz_ai_assistant_app.html'; }
+    // ====== SSO Providers ======
+    function ssoPopup(provider){
+      return auth.signInWithPopup(provider).catch(async (err)=>{
+        if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user'){
+          await auth.signInWithRedirect(provider);
+          return null;
+        }
+        throw err;
+      });
+    }
+
+    document.getElementById('googleBtn').addEventListener('click', async ()=>{
+      try{
+        const provider = new firebase.auth.GoogleAuthProvider();
+        await ssoPopup(provider);
+        if (auth.currentUser){ showNotification(LangManager.t('successTitle','Thành công!'), LangManager.t('successMsg','Đăng nhập thành công! Đang chuyển hướng...'), 'success'); setTimeout(()=>location.replace(destination()), 600); }
+      }catch(e){ showNotification(LangManager.t('errorTitle','Lỗi'), LangManager.t('errorLogin','Lỗi đăng nhập: ')+(e?.message||''), 'error'); }
+    });
+
+    document.getElementById('githubBtn').addEventListener('click', async ()=>{
+      try{
+        const provider = new firebase.auth.GithubAuthProvider();
+        await ssoPopup(provider);
+        if (auth.currentUser){ showNotification(LangManager.t('successTitle','Thành công!'), LangManager.t('successMsg','Đăng nhập thành công! Đang chuyển hướng...'), 'success'); setTimeout(()=>location.replace(destination()), 600); }
+      }catch(e){ showNotification(LangManager.t('errorTitle','Lỗi'), LangManager.t('errorLogin','Lỗi đăng nhập: ')+(e?.message||''), 'error'); }
+    });
+
+    document.getElementById('microsoftBtn').addEventListener('click', async ()=>{
+      try{
+        const provider = new firebase.auth.OAuthProvider('microsoft.com');
+        await ssoPopup(provider);
+        if (auth.currentUser){ showNotification(LangManager.t('successTitle','Thành công!'), LangManager.t('successMsg','Đăng nhập thành công! Đang chuyển hướng...'), 'success'); setTimeout(()=>location.replace(destination()), 600); }
+      }catch(e){ showNotification(LangManager.t('errorTitle','Lỗi'), LangManager.t('errorLogin','Lỗi đăng nhập: ')+(e?.message||''), 'error'); }
+    });
+
+    function continueAsGuest(){ location.href=destination(); }
 
     // Đóng modal khi click nền hoặc nhấn ESC
     document.addEventListener('click',e=>{const m=document.getElementById('notification-modal'); if(e.target===m) closeModal('notification-modal');});
     document.addEventListener('keydown',e=>{const m=document.getElementById('notification-modal'); if(e.key==='Escape' && !m.classList.contains('hidden')) closeModal('notification-modal');});
-  </script>
-
-  <!-- ===== Username Validator (chặn Unicode, chỉ ASCII) ===== -->
-  <script>
-    (function UsernameValidatorInit(){
-      const NO_UNICODE_RE = /^[\x20-\x7E]+$/;
-      const USERNAME_ASCII_RE = /^(?!.*\..*)(?!.*__)(?!.*--)[A-Za-z0-9](?:[A-Za-z0-9._-]{0,28}[A-Za-z0-9])$/;
-      function validateUsernameValue(val){
-        const s = (val||"").trim();
-        if(!NO_UNICODE_RE.test(s)) return { ok:false, msg:"Chỉ cho phép ASCII, không ký tự Unicode." };
-        if(!USERNAME_ASCII_RE.test(s)) return { ok:false, msg:"2–30 ký tự: A–Z a–z 0–9 . _ -, không đầu/cuối bằng . _ -, không có .. __ --" };
-        return { ok:true, msg:"" };
-      }
-      function attach(el){
-        if(!el || el._usernameValidatorBound) return;
-        el._usernameValidatorBound = true;
-        el.setAttribute("autocomplete","username");
-        el.setAttribute("spellcheck","false");
-        el.setAttribute("autocapitalize","off");
-        el.setAttribute("minlength","2");
-        el.setAttribute("maxlength","30");
-        el.addEventListener("input", () => {
-          const {ok, msg} = validateUsernameValue(el.value);
-          el.setCustomValidity(ok ? "" : msg);
-          el.reportValidity();
-        });
-        el.form?.addEventListener("submit", (e) => {
-          const {ok, msg} = validateUsernameValue(el.value);
-          if(!ok){ e.preventDefault(); el.setCustomValidity(msg); el.reportValidity(); el.focus(); }
-          else { el.setCustomValidity(""); }
-        });
-      }
-      document.querySelectorAll('input[name="username"], [data-username]').forEach(attach);
-      const obs = new MutationObserver((mutations)=>{
-        mutations.forEach(m=>{
-          m.addedNodes.forEach(node=>{
-            if(!(node instanceof Element)) return;
-            if(node.matches?.('input[name="username"], [data-username]')) attach(node);
-            node.querySelectorAll?.('input[name="username"], [data-username]').forEach(attach);
-          });
-        });
-      });
-      obs.observe(document.documentElement, {childList:true, subtree:true});
-      window.UsernameValidator = { validateRaw:(v)=>validateUsernameValue(v), regex:{NO_UNICODE_RE, USERNAME_ASCII_RE}, attach };
-    })();
   </script>
 </body>
 </html>
