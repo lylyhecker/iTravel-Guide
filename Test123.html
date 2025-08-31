@@ -422,24 +422,19 @@
     sel.value=currentPlace.id;
     renderPlace();
   }
-  async function loadReadForCurrent() {
-    currentReadText = '';
-    const lang = LangManager.get();
-    const url = (lang === 'en' && currentPlace.read_url_en) 
-                  ? currentPlace.read_url_en 
-                  : currentPlace.read_url;
 
-    if (url) {
-      try {
-        const r = await fetch(url, {cache:'no-store'});
-        currentReadText = await r.text();
-      } catch(e) {}
+  async function loadReadForCurrent(){
+      currentReadText='';
+      const lang=LangManager.get();
+      const url=(lang==='en' && currentPlace.read_url_en)? currentPlace.read_url_en : currentPlace.read_url;
+      if(url){
+        try{ const r=await fetch(url,{cache:'no-store'}); currentReadText=await r.text(); }catch{}
+      }
+      if(!currentReadText){
+        currentReadText=(lang==='en'? currentPlace.intro_en : currentPlace.intro) || '';
+      }
+      document.getElementById('intro').textContent=currentReadText;
     }
-    if (!currentReadText) {
-      currentReadText = (lang === 'en' ? currentPlace.intro_en : currentPlace.intro) || '';
-    }
-    document.getElementById('intro').textContent = currentReadText;
-  }
 
   function initMap(){
     map=L.map('map').setView([16.46974,107.57969],13);
@@ -848,6 +843,18 @@ Giải thích: [Giải thích ngắn gọn, chính xác]
   } else {
     document.addEventListener('DOMContentLoaded', function(){ applyUserHeaderName(null); });
   }
+</script>
+
+<!-- LangManager giả định (đơn giản) -->
+<script>
+window.LangManager={
+  current:'vi',
+  get(){return this.current;},
+  set(l){this.current=l; renderPlace();}
+};
+document.getElementById('langSelect').addEventListener('change',e=>{
+  window.LangManager.set(e.target.value);
+});
 </script>
   
 </body>
