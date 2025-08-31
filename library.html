@@ -53,15 +53,8 @@
     .badge{ border:1px solid var(--border); border-radius:999px; padding:4px 10px; font-size:12px; color:var(--muted); background: var(--bg-soft) }
 
     /* 🔒 Trạng thái disable cho voucher đã dùng/hết hạn */
-    .is-disabled{
-      opacity: .55;
-      filter: grayscale(.3);
-    }
-    .btn[disabled], .btn.disabled, a.btn.disabled{
-      pointer-events: none !important;
-      opacity: .6;
-      cursor: not-allowed !important;
-    }
+    .is-disabled{ opacity: .55; filter: grayscale(.3); }
+    .btn[disabled], .btn.disabled, a.btn.disabled{ pointer-events: none !important; opacity: .6; cursor: not-allowed !important; }
   </style>
 </head>
 <body>
@@ -70,13 +63,17 @@
       <div class="flex items-center gap-3">
         <div class="w-9 h-9 rounded-xl ring-1 ring-white/10 grid place-items-center" style="background:linear-gradient(135deg,var(--primary),#60a5fa)"><img src="assets/book.svg" class="icon" alt=""></div>
         <div>
-          <h1 class="text-lg font-extrabold">Thư viện Voucher</h1>
-          <div class="text-xs muted" id="status">Đang tải...</div>
+          <h1 class="text-lg font-extrabold" data-i18n="libraryTitle">Thư viện Voucher</h1>
+          <div class="text-xs muted" id="status" data-i18n="loading">Đang tải...</div>
         </div>
       </div>
       <div class="flex items-center gap-3 flex-wrap">
-        <a class="btn secondary" href="redeem.html"><img src="assets/gift.svg" class="icon" alt=""> Đổi quà</a>
+        <a class="btn secondary" href="redeem.html"><img src="assets/gift.svg" class="icon" alt=""> <span data-i18n="redeem">Đổi quà</span></a>
         <button class="btn secondary" id="themeBtn" title="Đổi giao diện"><img id="themeIcon" class="icon" alt=""></button>
+        <select id="langSelect" class="btn secondary" title="Language">
+          <option value="vi">🇻🇳 VI</option>
+          <option value="en">🇬🇧 EN</option>
+        </select>
       </div>
     </div>
   </header>
@@ -84,10 +81,10 @@
   <main class="max-w-6xl mx-auto px-4 py-6">
     <section class="card p-5">
       <div class="flex items-center gap-3 justify-between flex-wrap mb-3">
-        <h2 class="text-xl font-bold flex items-center gap-2"><img src="assets/voucher.svg" class="icon" alt=""> <span>Voucher của bạn</span></h2>
+        <h2 class="text-xl font-bold flex items-center gap-2"><img src="assets/voucher.svg" class="icon" alt=""> <span data-i18n="yourVouchers">Voucher của bạn</span></h2>
         <div class="flex gap-2">
-          <input id="q" class="px-3 py-2 rounded-lg border" style="background:var(--card);color:var(--text);border-color:var(--border)" placeholder="Tìm theo tên quà...">
-          <button id="clearBtn" class="btn secondary">Xoá</button>
+          <input id="q" class="px-3 py-2 rounded-lg border" style="background:var(--card);color:var(--text);border-color:var(--border)" placeholder="Tìm theo tên quà..." data-i18n-ph="searchPlaceholder">
+          <button id="clearBtn" class="btn secondary" data-i18n="clear">Xoá</button>
         </div>
       </div>
 
@@ -195,17 +192,17 @@
       }catch{ return []; }
     }
 
-    /* 🔧 Render: disable & bôi xám nếu used/expired */
+    /* 🔧 Render: disable & bôi xám nếu used/expired + i18n */
     function render(data){
       listEl.innerHTML = '';
       if (!data.length){
-        listEl.innerHTML = `<div class="card p-4 text-center muted">Không có voucher nào.</div>`;
+        listEl.innerHTML = `<div class="card p-4 text-center muted" data-i18n="noVouchers">${LangManager.t('noVouchers','Không có voucher nào.')}</div>`;
         return;
       }
       data.sort((a,b) => (a.expiry?.getTime()||9e15) - (b.expiry?.getTime()||9e15));
       for (const item of data){
         const isDisabled = item.used || item.expired;
-        const badgeText = item.used ? 'Đã dùng' : (item.expired ? 'Hết hạn' : 'Còn hạn');
+        const badgeText = item.used ? LangManager.t('used','Đã dùng') : (item.expired ? LangManager.t('expired','Hết hạn') : LangManager.t('valid','Còn hạn'));
 
         const card = document.createElement('div');
         card.className = 'card p-4 flex flex-col gap-2' + (isDisabled ? ' is-disabled' : '');
@@ -214,16 +211,16 @@
             <h3 class="font-bold text-base">${item.giftName}</h3>
             <span class="badge">${badgeText}</span>
           </div>
-          <div class="muted text-sm">Hết hạn: ${item.expiry ? item.expiry.toLocaleString('vi-VN') : 'Không có thông tin'}</div>
+          <div class="muted text-sm">${LangManager.t('expiry','Hết hạn:')} ${item.expiry ? item.expiry.toLocaleString(LangManager.get()==='en'?'en-US':'vi-VN') : LangManager.t('noInfo','Không có thông tin')}</div>
           <div class="flex gap-2 mt-1">
             ${isDisabled
               ? `
-                <a class="btn secondary disabled" aria-disabled="true" tabindex="-1">Chi tiết</a>
-                <button class="btn" disabled>Sử dụng</button>
+                <a class="btn secondary disabled" aria-disabled="true" tabindex="-1">${LangManager.t('details','Chi tiết')}</a>
+                <button class="btn" disabled>${LangManager.t('use','Sử dụng')}</button>
               `
               : `
-                <a class="btn secondary" href="voucher.html?id=${encodeURIComponent(item.id)}">Chi tiết</a>
-                <a class="btn" href="voucher.html?id=${encodeURIComponent(item.id)}">Sử dụng</a>
+                <a class="btn secondary" href="voucher.html?id=${encodeURIComponent(item.id)}">${LangManager.t('details','Chi tiết')}</a>
+                <a class="btn" href="voucher.html?id=${encodeURIComponent(item.id)}">${LangManager.t('use','Sử dụng')}</a>
               `
             }
           </div>
@@ -234,11 +231,11 @@
 
     auth.onAuthStateChanged(async user => {
       if (!user) {
-        statusEl.innerHTML = 'Bạn cần <a class="btn secondary" href="login.html">đăng nhập</a> để xem.';
+        statusEl.innerHTML = `${LangManager.t('needLogin','Bạn cần đăng nhập để xem.')} <a class="btn secondary" href="login.html">${LangManager.t('redeem','Đổi quà')}</a>`;
         listEl.innerHTML = '';
         return;
       }
-      statusEl.textContent = 'Đang tải voucher...';
+      statusEl.textContent = LangManager.t('loading','Đang tải...');
 
       try {
         const [own, shared, ownOld, sharedOld, ownByUid, ownByUidOld, fromLogs] = await Promise.all([
@@ -263,11 +260,13 @@
         }
 
         render(models);
-        statusEl.textContent = models.length ? `Có ${models.length} voucher` : 'Bạn chưa có voucher nào.';
+        statusEl.textContent = models.length
+          ? LangManager.t('count','Có {n} voucher').replace('{n}', String(models.length))
+          : LangManager.t('none','Bạn chưa có voucher nào.');
         allDocs = models;
       } catch (err) {
         console.error(err);
-        statusEl.textContent = 'Lỗi tải voucher: ' + (err.message || err);
+        statusEl.textContent = LangManager.t('loadErr','Lỗi tải voucher: ') + (err.message || err);
         listEl.innerHTML = '';
       }
     });
@@ -362,6 +361,143 @@
         if(t!==current){ setLocal(t); applyTheme(t); }
       });
     });
+  })();
+  </script>
+
+  <!-- LangSync: i18n Firestore + fallback + placeholder support -->
+  <script>
+  (function LangSync(){
+    const LS_KEY = 'app-lang';
+    const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('lang-sync') : null;
+    const sel = document.getElementById('langSelect');
+    const dictCache = {};
+    let current = null, uid = null, unsubUser = null, suppressNext = false;
+
+    const fallback = {
+      vi: {
+        titlePage:'Thư viện Voucher',
+        libraryTitle:'Thư viện Voucher',
+        loading:'Đang tải...',
+        redeem:'Đổi quà',
+        yourVouchers:'Voucher của bạn',
+        searchPlaceholder:'Tìm theo tên quà...',
+        clear:'Xoá',
+        noVouchers:'Không có voucher nào.',
+        used:'Đã dùng',
+        expired:'Hết hạn',
+        valid:'Còn hạn',
+        details:'Chi tiết',
+        use:'Sử dụng',
+        expiry:'Hết hạn:',
+        noInfo:'Không có thông tin',
+        needLogin:'Bạn cần đăng nhập để xem.',
+        count:'Có {n} voucher',
+        none:'Bạn chưa có voucher nào.',
+        loadErr:'Lỗi tải voucher: '
+      },
+      en: {
+        titlePage:'Voucher Library',
+        libraryTitle:'Voucher Library',
+        loading:'Loading...',
+        redeem:'Redeem',
+        yourVouchers:'Your vouchers',
+        searchPlaceholder:'Search by gift name...',
+        clear:'Clear',
+        noVouchers:'No vouchers.',
+        used:'Used',
+        expired:'Expired',
+        valid:'Valid',
+        details:'Details',
+        use:'Use',
+        expiry:'Expires:',
+        noInfo:'No info',
+        needLogin:'You need to login to view.',
+        count:'You have {n} vouchers',
+        none:'You have no vouchers.',
+        loadErr:'Failed to load vouchers: '
+      }
+    };
+
+    function sys(){ const n=(navigator.language||'vi').toLowerCase(); return n.startsWith('vi')?'vi':'en'; }
+    function getLocal(){ try{return localStorage.getItem(LS_KEY)}catch{return null} }
+    function setLocal(v){ try{ localStorage.setItem(LS_KEY, v) }catch{} }
+
+    async function loadDict(lang){
+      if (dictCache[lang]) return dictCache[lang];
+      try{
+        const snap = await db.collection('i18n').doc(lang).get();
+        if (snap.exists){ dictCache[lang] = { ...fallback[lang], ...(snap.data()||{}) }; return dictCache[lang]; }
+      }catch(e){}
+      dictCache[lang] = fallback[lang] || {}; return dictCache[lang];
+    }
+
+    function applyDict(dict){
+      // textContent for [data-i18n]
+      document.querySelectorAll('[data-i18n]').forEach(el=>{
+        const k = el.getAttribute('data-i18n');
+        if (k && dict[k] != null) el.textContent = dict[k];
+      });
+      // placeholder for [data-i18n-ph]
+      document.querySelectorAll('[data-i18n-ph]').forEach(el=>{
+        const k = el.getAttribute('data-i18n-ph');
+        if (k && dict[k] != null) el.setAttribute('placeholder', dict[k]);
+      });
+      if (dict.titlePage) document.title = dict.titlePage;
+    }
+
+    async function applyLang(lang){
+      current = lang; if (sel) sel.value = lang; setLocal(lang);
+      const dict = await loadDict(lang); window.__i18n = dict; applyDict(dict);
+      if (bc) bc.postMessage({ type:'lang-applied', lang });
+      try{ window.dispatchEvent(new CustomEvent('langchange', { detail:{ lang } })); }catch{}
+    }
+
+    window.LangManager = {
+      get(){ return current || getLocal() || sys(); },
+      async set(lang){ if (!lang) return; await applyLang(lang); },
+      t(k, fb){ const d = window.__i18n || {}; return (d[k] != null ? d[k] : (fb||'')); }
+    };
+
+    sel?.addEventListener('change', e=> window.LangManager.set(e.target.value));
+
+    (async ()=>{ const initial = getLocal() || sys(); await applyLang(initial); })();
+
+    // Đồng bộ theo tài khoản
+    auth.onAuthStateChanged(async (user)=>{
+      if (unsubUser){ unsubUser(); unsubUser = null; }
+      uid = user?.uid || null;
+
+      if (!uid){ const lang = getLocal() || sys(); await applyLang(lang); return; }
+
+      const userRef = db.collection('users').doc(uid);
+      const snap = await userRef.get();
+      let remoteLang = snap.exists ? (snap.data()?.prefs?.lang || null) : null;
+
+      if (!remoteLang){
+        remoteLang = getLocal() || sys();
+        await applyLang(remoteLang);
+        try{ await userRef.set({ prefs:{ lang:remoteLang, updatedAt: firebase.firestore.FieldValue.serverTimestamp() } }, { merge:true }); }catch{}
+      } else {
+        setLocal(remoteLang);
+        await applyLang(remoteLang);
+      }
+
+      unsubUser = userRef.onSnapshot(s=>{
+        if (!s.exists) return;
+        const v = s.data()?.prefs?.lang; if (!v) return;
+        if (suppressNext) return;
+        if (v !== current){ setLocal(v); applyLang(v); }
+      });
+    });
+
+    // Sync đa tab
+    if (bc){
+      bc.onmessage = (ev)=>{
+        if (ev?.data?.type === 'lang-applied'){
+          const lang = ev.data.lang; if (lang && lang !== current) applyLang(lang);
+        }
+      };
+    }
   })();
   </script>
 </body>
