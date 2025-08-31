@@ -1,17 +1,19 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Voucher</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Chi tiết voucher</title>
 
-  <!-- Favicon theo theme (ThemeManager sẽ đổi) -->
-  <link id="favicon" rel="icon" type="image/svg+xml" href="assets/favicon-light.svg"/>
-
-  <!-- Tailwind -->
+  <!-- Tailwind for layout/spacing -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- ===== THEME (giống redeem, theo code bạn đưa) ===== -->
+  <!-- QRCode.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <!-- Favicon (ThemeManager will swap) -->
+  <link id="favicon" rel="icon" type="image/svg+xml" href="assets/favicon-light.svg" />
+
   <style>
     :root{
       --bg:#0b1020; --bg-soft:#11162a; --card:#121a33; --text:#e7ecf7; --muted:#a8b2d1;
@@ -19,22 +21,10 @@
       --border:rgba(255,255,255,.08); --shadow:0 10px 30px rgba(0,0,0,.25);
     }
     @media (prefers-color-scheme: light){
-      :root{
-        --bg:#f6f8fa; --bg-soft:#eef1f6; --card:#ffffff; --text:#111827; --muted:#6b7280;
-        --primary:#2563eb; --primary-strong:#1e40af; --ok:#16a34a; --err:#dc2626;
-        --border:rgba(0,0,0,.08); --shadow:0 10px 30px rgba(0,0,0,.08);
-      }
+      :root{ --bg:#f6f8fa; --bg-soft:#eef1f6; --card:#ffffff; --text:#111827; --muted:#6b7280; --primary:#2563eb; --primary-strong:#1e40af; --ok:#16a34a; --err:#dc2626; --border:rgba(0,0,0,.08); --shadow:0 10px 30px rgba(0,0,0,.08); }
     }
-    :root[data-theme="light"]{
-      --bg:#f6f8fa; --bg-soft:#eef1f6; --card:#fff; --text:#111827; --muted:#6b7280;
-      --primary:#2563eb; --primary-strong:#1e40af; --ok:#16a34a; --err:#dc2626;
-      --border:rgba(0,0,0,.08); --shadow:0 10px 30px rgba(0,0,0,.08);
-    }
-    :root[data-theme="dark"]{
-      --bg:#0b1020; --bg-soft:#11162a; --card:#121a33; --text:#e7ecf7; --muted:#a8b2d1;
-      --primary:#7aa2ff; --primary-strong:#5a86ff; --ok:#22c55e; --err:#ef4444;
-      --border:rgba(255,255,255,.08); --shadow:0 10px 30px rgba(0,0,0,.25);
-    }
+    :root[data-theme="light"]{ --bg:#f6f8fa; --bg-soft:#eef1f6; --card:#ffffff; --text:#111827; --muted:#6b7280; --primary:#2563eb; --primary-strong:#1e40af; --ok:#16a34a; --err:#dc2626; --border:rgba(0,0,0,.08); --shadow:0 10px 30px rgba(0,0,0,.08); }
+    :root[data-theme="dark"]{ --bg:#0b1020; --bg-soft:#11162a; --card:#121a33; --text:#e7ecf7; --muted:#a8b2d1; --primary:#7aa2ff; --primary-strong:#5a86ff; --ok:#22c55e; --err:#ef4444; --border:rgba(255,255,255,.08); --shadow:0 10px 30px rgba(0,0,0,.25); }
 
     html,body{height:100%}
     body{
@@ -46,260 +36,256 @@
         var(--bg);
     }
 
-    .wrap{ max-width:1100px; margin:0 auto; padding:20px 16px 40px; }
-    .topbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom: 16px; }
-    .title{ display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.2px; }
-    .logo{ width:36px; height:36px; border-radius:12px; display:grid; place-items:center;
-           background: linear-gradient(135deg, var(--primary), #60a5fa); box-shadow: var(--shadow); }
-    .icon{ width:18px; height:18px; object-fit:contain; display:inline-block; }
-    .muted{ color:var(--muted); font-size:14px; }
-    .actions{ display:flex; gap:10px; flex-wrap:wrap; }
-    .btn{ border:none; cursor:pointer; background: var(--primary); color:white; font-weight:700;
-          padding:10px 14px; border-radius:12px; text-decoration:none; display:inline-flex; align-items:center; gap:8px; }
-    .btn:hover{ background: var(--primary-strong); }
-    .btn.secondary{ background: transparent; color: var(--text); border:1px solid var(--border); }
-    .btn.secondary:hover{ background: var(--bg-soft); }
-
     .card{ background: var(--card); border:1px solid var(--border); border-radius:18px; box-shadow: var(--shadow); }
-    .badge{ border:1px solid var(--border); border-radius:999px; padding:4px 10px; font-size:12px; color:var(--muted); background: var(--bg-soft) }
-    .status.active{color:var(--ok)} .status.expired{color:var(--err)} .status.used{color:#f59e0b}
-    .big{font-size:28px;font-weight:800} .mono{font-family:ui-monospace,monospace}
+    .icon { width: 18px; height: 18px; object-fit: contain; display:inline-block }
+    .muted{ color: var(--muted); }
 
-    .qr-card{ border:1px solid var(--border); border-radius:16px; background: var(--bg-soft); box-shadow: var(--shadow); }
-    .qr-note{ border-top:1px dashed var(--border); padding:10px 12px; font-size:12px; color:var(--muted); background: var(--card); }
+    .btn{
+      appearance:none; border:none; cursor:pointer;
+      background: var(--primary); color:white; font-weight:700;
+      padding:10px 14px; border-radius:12px;
+      transition: transform .12s ease, background .2s ease;
+      box-shadow: 0 6px 18px rgba(37,99,235,.25);
+      text-decoration:none; display:inline-flex; align-items:center; gap:8px;
+    }
+    .btn:hover{ transform: translateY(-1px); background: var(--primary-strong); }
+    .btn.secondary{ background: transparent; color: var(--text); border:1px solid var(--border); box-shadow:none; }
+    .btn.secondary:hover{ background: var(--bg-soft); }
+    .btn[disabled]{ opacity:.6; cursor:not-allowed; pointer-events:none }
 
-    /* Toast không chắn click khi ẩn */
-    .toast{ position:fixed; top:16px; right:16px; max-width:320px; z-index:60;
-      background:var(--card); color:var(--text); border:1px solid var(--border); border-left:4px solid var(--primary);
-      border-radius:12px; padding:12px 14px; box-shadow:var(--shadow);
-      opacity:0; transform: translateY(-6px); transition: all .25s ease; pointer-events:none; }
-    .toast.show{ opacity:1; transform:none; pointer-events:auto; }
+    .badge{ border:1px solid var(--border); border-radius:999px; padding:4px 10px; font-size:12px; }
+    .badge.ok{ color:#16a34a; border-color:#16a34a33; }
+    .badge.err{ color:#ef4444; border-color:#ef444433; }
+    .badge.warn{ color:#f59e0b; border-color:#f59e0b33; }
+
+    .kv{ display:grid; grid-template-columns: 160px 1fr; gap:8px 12px; }
+    .kv .k{ color:var(--muted) }
+    .kv .v{ }
+
+    /* Toast */
+    .toast{ position:fixed; top:16px; right:16px; max-width:360px; z-index:60; background:var(--card); color:var(--text); border:1px solid var(--border); border-left:4px solid var(--primary); border-radius:12px; padding:12px 14px; box-shadow:var(--shadow); opacity:0; transform: translateY(-6px); transition: all .25s ease; pointer-events:none; }
+    .toast.show{ opacity:1; transform:none; pointer-events:auto }
     .toast.success{ border-left-color:#22c55e } .toast.error{ border-left-color:#ef4444 } .toast.info{ border-left-color:var(--primary) }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <!-- Header giống redeem, KHÔNG dùng logo.png -->
-    <div class="topbar">
-      <div class="title">
-        <div class="logo"><img src="assets/gift.svg" class="icon" alt="gift"></div>
+  <!-- Header -->
+  <header class="app-header shadow-md">
+    <div class="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl ring-1 ring-white/10 grid place-items-center" style="background:linear-gradient(135deg,var(--primary),#60a5fa)">
+          <img src="assets/voucher.svg" class="icon" alt="">
+        </div>
         <div>
-          <div>Voucher</div>
-          <div class="muted" id="statusSub">Quét & xác thực mã</div>
+          <h1 class="text-lg font-extrabold" data-i18n="pageTitle">Chi tiết voucher</h1>
+          <div class="text-xs muted" id="statusSub" data-i18n="loading">Đang tải...</div>
         </div>
       </div>
-      <div class="actions">
-        <a class="btn secondary" href="library.html"><img src="assets/book.svg" class="icon" alt=""> Thư viện</a>
-        <a class="btn secondary" href="redeem.html"><img src="assets/gift.svg" class="icon" alt=""> Đổi quà</a>
-        <button id="themeBtn" class="btn secondary" title="Đổi giao diện">
-          <img id="themeIcon" class="icon" alt="theme">
-        </button>
+
+      <div class="flex items-center gap-3 flex-wrap">
+        <a class="btn secondary" href="library.html"><img src="assets/book.svg" class="icon" alt=""> <span data-i18n="library">Thư viện</span></a>
+        <button class="btn secondary" id="themeBtn" title="Đổi giao diện"><img id="themeIcon" class="icon" alt=""></button>
+        <select id="langSelect" class="btn secondary" title="Language">
+          <option value="vi">🇻🇳 VI</option>
+          <option value="en">🇬🇧 EN</option>
+        </select>
       </div>
     </div>
+  </header>
 
-    <!-- Main -->
-    <main>
-      <section class="card p-6">
-        <div class="flex justify-between items-center">
-          <h1 class="big">Chi tiết voucher</h1>
-          <span id="statusBadge" class="badge status">Đang tải...</span>
-        </div>
+  <!-- Main -->
+  <main class="max-w-4xl mx-auto px-4 py-6">
+    <section class="card p-5">
+      <div class="flex flex-col lg:flex-row gap-6">
+        <div class="flex-1">
+          <div class="flex items-center gap-2 mb-2">
+            <span id="statusBadge" class="badge warn" data-i18n="activeBadge">Đang hiệu lực</span>
+          </div>
+          <h2 id="giftName" class="text-xl font-bold">—</h2>
 
-        <div class="grid md:grid-cols-2 gap-6 mt-4">
-          <!-- LEFT -->
-          <div>
-            <div class="flex justify-between"><span class="muted">Món quà</span><strong id="giftName">—</strong></div>
-            <div class="flex justify-between"><span class="muted">Mã voucher</span><span id="voucherId" class="mono">—</span></div>
-            <div class="flex justify-between"><span class="muted">Ngày cấp</span><span id="issuedAt">—</span></div>
-            <div class="flex justify-between"><span class="muted">Hạn dùng</span><span id="expiresAt">—</span></div>
-            <div class="flex justify-between"><span class="muted">Còn lại</span><span id="remaining">—</span></div>
-
-            <div class="mt-6 flex flex-wrap gap-3">
-              <button id="backBtn" class="btn secondary">Quay lại đổi quà</button>
-              <button id="useBtn" class="btn">Đánh dấu đã dùng</button>
+          <div class="kv mt-4">
+            <div class="k" data-i18n="codeLabel">Mã</div>
+            <div class="v flex gap-2 items-center">
+              <span id="voucherId">—</span>
+              <button id="copyBtn" class="btn secondary btn-xs px-2 py-1" style="padding:4px 8px;font-size:12px"><img src="assets/copy.svg" class="icon" alt=""> <span data-i18n="copyCode">Copy</span></button>
             </div>
+
+            <div class="k" data-i18n="issuedAt">Ngày cấp</div>
+            <div class="v"><span id="issuedAt">—</span></div>
+
+            <div class="k" data-i18n="expiresAt">Hạn dùng</div>
+            <div class="v"><span id="expiresAt">—</span></div>
+
+            <div class="k" data-i18n="timeLeft">Thời gian còn lại</div>
+            <div class="v"><span id="timeLeft">—</span></div>
           </div>
 
-          <!-- RIGHT: QR -->
-          <div class="qr-card p-4">
-            <div class="text-center">
-              <div class="muted mb-2">Mã QR</div>
-              <div id="qrcode" class="inline-block p-3 border rounded-lg" style="background:var(--card)"></div>
-            </div>
-            <div class="qr-note mt-4">
-              Dùng app đối tác để quét & xác thực. Nhân viên có thể nhập mã thủ công nếu cần.
-            </div>
+          <div class="mt-5 flex gap-2 flex-wrap">
+            <a class="btn secondary" href="library.html"><img src="assets/back.svg" class="icon" alt=""> <span data-i18n="back">Quay lại</span></a>
+            <button id="markUsedBtn" class="btn"><img src="assets/check.svg" class="icon" alt=""> <span data-i18n="markUsed">Đánh dấu đã dùng</span></button>
+            <button id="restoreBtn" class="btn secondary"><img src="assets/refresh.svg" class="icon" alt=""> <span data-i18n="restore">Khôi phục trạng thái</span></button>
           </div>
         </div>
-      </section>
-    </main>
-  </div>
+
+        <div class="w-full lg:w-72">
+          <div class="text-sm muted mb-2" data-i18n="qrTitle">Quét QR để sử dụng tại quầy</div>
+          <div id="qrcode" class="card p-4 grid place-items-center"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <div class="max-w-4xl mx-auto px-4 py-4 text-center text-sm muted">
+      © 2025 Quiz & Assistant Web — Design by Mr.Hecker
+    </div>
+  </footer>
 
   <!-- Toast -->
-  <div id="toast" class="toast"><strong id="toast-title"></strong><div id="toast-msg"></div></div>
+  <div id="toast" class="toast"><strong id="toast-title"></strong><div id="toast-msg" class="mt-1 text-sm"></div></div>
 
   <!-- Firebase compat -->
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <!-- QRCode.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <script>
+    // ===== Firebase init =====
+    const firebaseConfig = {
+      apiKey: "AIzaSyDOhTKHU4P3jJ7aTkvSiewNoHu1_KXkcrU",
+      authDomain: "loginandsignin-4932b.firebaseapp.com",
+      projectId: "loginandsignin-4932b",
+      storageBucket: "loginandsignin-4932b.appspot.com",
+      messagingSenderId: "863133586719",
+      appId: "1:863133586719:web:81eb32db8e08e8d89e8c2a"
+    };
+    if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const auth=firebase.auth(); const db=firebase.firestore();
+
+    const $=id=>document.getElementById(id);
+    function toast(title,msg,type='info',after=null){
+      const t=$('toast'); $('toast-title').textContent=title; $('toast-msg').textContent=msg;
+      t.className='toast '+type; requestAnimationFrame(()=>t.classList.add('show'));
+      setTimeout(()=>{ t.classList.remove('show'); after&&after(); }, 2300);
+    }
+
+    function asDate(v){ return (v && typeof v.toDate==='function') ? v.toDate() : (v ? new Date(v) : null); }
+    function fmt(d){ return d? d.toLocaleString(LangManager.get()==='en'?'en-US':'vi-VN') : '—'; }
+
+    function parseVoucherId(){
+      const u = new URL(location.href);
+      const p = (u.searchParams.get('id')||'').trim();
+      if (p) return p;
+      const h = (u.hash||'').replace(/^#/, '');
+      if (h) return h;
+      const last = u.pathname.split('/').filter(Boolean).pop();
+      if (last && last !== 'voucher.html') return last;
+      return null;
+    }
+
+    async function fallbackLastVoucherId(){
+      const user = auth.currentUser; if(!user) return null;
+      try{ const snap=await db.collection('users').doc(user.uid).get(); return snap.data()?.last_voucher_id || null; }catch{return null}
+    }
+
+    async function fetchVoucherById(id){
+      let snap = await db.collection('vouchers').doc(id).get();
+      if (snap.exists) return { col:'vouchers', id, data:snap.data() };
+      // legacy collection name
+      snap = await db.collection('voucher').doc(id).get();
+      if (snap.exists) return { col:'voucher', id, data:snap.data() };
+      return null;
+    }
+
+    function statusFrom(v){
+      const expiry = asDate(v.expiresAt) || asDate(v.expiry);
+      const issued = asDate(v.issuedAt) || asDate(v.createdAt);
+      const status = (v.status||'').toLowerCase();
+      const expired = expiry ? (expiry.getTime() < Date.now()) : false;
+      const used = status==='used' || v.used === true;
+      return { expiry, issued, status, expired, used };
+    }
+
+    function humanTimeLeft(expiry){
+      if (!expiry) return '—';
+      const ms = expiry.getTime() - Date.now();
+      if (ms <= 0) return LangManager.t('expiredBadge','Đã hết hạn');
+      const s = Math.floor(ms/1000);
+      const d = Math.floor(s/86400);
+      const h = Math.floor((s%86400)/3600);
+      const m = Math.floor((s%3600)/60);
+      if (d>0) return `${d}d ${h}h ${m}m`;
+      if (h>0) return `${h}h ${m}m`;
+      return `${m}m`;
+    }
+
+    function setBadge(used, expired){
+      const el=$('statusBadge');
+      if (used){ el.className='badge err'; el.textContent=LangManager.t('usedBadge','Đã dùng'); return; }
+      if (expired){ el.className='badge err'; el.textContent=LangManager.t('expiredBadge','Đã hết hạn'); return; }
+      el.className='badge ok'; el.textContent=LangManager.t('activeBadge','Đang hiệu lực');
+    }
+
+    let currentVoucherId=null, currentVoucherDoc=null;
+
+    function fillUI(doc){
+      $('giftName').textContent = doc.data.giftName || doc.data.gift || '—';
+      $('voucherId').textContent = doc.id;
+      const s = statusFrom(doc.data);
+      $('issuedAt').textContent = fmt(s.issued);
+      $('expiresAt').textContent = fmt(s.expiry);
+      $('timeLeft').textContent = humanTimeLeft(s.expiry);
+      setBadge(s.used, s.expired);
+
+      // Buttons state
+      const canUse = !s.used && !s.expired;
+      $('markUsedBtn').disabled = !canUse;
+      $('restoreBtn').disabled = s.used === false;
+
+      // QR code
+      const qEl = $('qrcode'); qEl.innerHTML='';
+      const payload = JSON.stringify({ type:'voucher', id:doc.id, gift:doc.data.giftName||doc.data.gift||'' });
+      new QRCode(qEl, { text: payload, width: 220, height: 220, colorDark: getComputedStyle(document.documentElement).getPropertyValue('--text')||'#111', colorLight: 'transparent', correctLevel: QRCode.CorrectLevel.M });
+    }
+
+    async function markUsedState(used){
+      if (!currentVoucherDoc) return;
+      const { col, id } = currentVoucherDoc;
+      try{
+        await db.collection(col).doc(id).set({ status: used?'used':'active', used: used || firebase.firestore.FieldValue.delete() }, { merge: true });
+        // also write last_used_voucher_id
+        const u = auth.currentUser; if(u){ await db.collection('users').doc(u.uid).set({ last_used_voucher_id: id }, { merge:true }); }
+        const snap = await db.collection(col).doc(id).get();
+        currentVoucherDoc = { col, id, data: snap.data() };
+        fillUI(currentVoucherDoc);
+        toast(LangManager.t('updateSuccess','Cập nhật thành công'), used? LangManager.t('statusUsed','Đã đánh dấu là đã dùng.'): LangManager.t('statusActive','Đã khôi phục trạng thái hoạt động.'), 'success');
+      }catch(e){ toast(LangManager.t('updateFail','Cập nhật thất bại'), e.message||'', 'error'); }
+    }
+
+    $('markUsedBtn').addEventListener('click', ()=> markUsedState(true));
+    $('restoreBtn').addEventListener('click', ()=> markUsedState(false));
+    $('copyBtn').addEventListener('click', async ()=>{
+      try{ await navigator.clipboard.writeText(currentVoucherId||''); toast(LangManager.t('copied','Đã sao chép'), currentVoucherId||'', 'info'); }catch{}
+    });
+
+    auth.onAuthStateChanged(async (user)=>{
+      const id = parseVoucherId() || await fallbackLastVoucherId();
+      currentVoucherId = id;
+      if (!id){ $('statusSub').textContent = LangManager.t('notFoundMsg','Không tìm thấy voucher.'); return; }
+      $('statusSub').textContent = LangManager.t('loading','Đang tải...');
+      try{
+        const doc = await fetchVoucherById(id);
+        if (!doc){ $('statusSub').textContent = LangManager.t('notFoundMsg','Không tìm thấy voucher.'); return; }
+        currentVoucherDoc = doc;
+        fillUI(doc);
+        $('statusSub').textContent = '';
+      }catch(e){ $('statusSub').textContent = LangManager.t('loadErr','Lỗi tải voucher: ') + (e.message||e); }
+    });
+  </script>
 
   <!-- ThemeSync v3: đồng bộ theme theo tài khoản (giữ nguyên UI hiện có) -->
   <script>
-  
-  </script>
-
-  <!-- Đồng bộ icon & re-render QR khi đổi theme -->
-  <script>
-    const faviconEl=document.getElementById('favicon');
-    const themeIcon=document.getElementById('themeIcon');
-    function applyThemeAssets(mode){
-      if(themeIcon){ themeIcon.src=mode==='dark'?'assets/theme-dark.svg':'assets/theme-light.svg'; themeIcon.alt=mode==='dark'?'Dark':'Light'; }
-      if(faviconEl){
-        faviconEl.href=mode==='dark'?'assets/favicon-dark.svg':'assets/favicon-light.svg';
-        faviconEl.href=faviconEl.href.split('?')[0]+'?v='+Date.now(); // ép Chrome refresh
-      }
-      if(window.__lastVoucherId) renderQRCode(window.__lastVoucherId); // QR đổi màu theo theme
-    }
-    applyThemeAssets(window.ThemeManager?.getTheme?.()||'dark');
-    addEventListener('themechange',e=>applyThemeAssets(e.detail?.theme||'dark'));
-  </script>
-
-  <!-- ===== App logic: đọc ID đa nguồn + claim legacy + Firestore ===== -->
-  <script>
-    // ===== Firebase init =====
-    const firebaseConfig={
-      apiKey:"AIzaSyDOhTKHU4P3jJ7aTkvSiewNoHu1_KXkcrU",
-      authDomain:"loginandsignin-4932b.firebaseapp.com",
-      projectId:"loginandsignin-4932b",
-      storageBucket:"loginandsignin-4932b.appspot.com",
-      messagingSenderId:"863133586719",
-      appId:"1:863133586719:web:81eb32db8e08e8d89e8c2a"
-    };
-    if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-    window.dispatchEvent(new Event('firebase-ready'));
-    const auth=firebase.auth(), db=firebase.firestore();
-
-    // ===== UI helpers =====
-    const $=id=>document.getElementById(id);
-    const giftNameEl=$('giftName'), voucherIdEl=$('voucherId'), issuedAtEl=$('issuedAt'),
-          expiresAtEl=$('expiresAt'), remainingEl=$('remaining'), statusBadge=$('statusBadge'),
-          backBtn=$('backBtn'), useBtn=$('useBtn');
-
-    function toast(t,m,tp='info',after=null){
-      const box=$('toast'); $('toast-title').textContent=t; $('toast-msg').textContent=m;
-      box.className='toast '+tp; requestAnimationFrame(()=>box.classList.add('show'));
-      setTimeout(()=>{box.classList.remove('show'); after&&after();},2400);
-    }
-
-    backBtn.onclick=()=>history.length>1?history.back():location.href='redeem.html';
-
-    function setStatusBadge(st){ statusBadge.className='badge status '+(st||'active'); statusBadge.textContent=st||'active'; }
-
-    // ===== Resolve ID: search -> hash -> path =====
-    function getParamFromSearch(names){
-      const sp=new URL(location.href).searchParams;
-      for(const k of names){const v=sp.get(k); if(v) return decodeURIComponent(v.trim());}
-      return null;
-    }
-    function getParamFromHash(names){
-      if(!location.hash) return null;
-      const raw=location.hash.replace(/^#\/?/, '');
-      if(raw.includes('?')){
-        const qs=new URLSearchParams(raw.split('?')[1]);
-        for(const k of names){const v=qs.get(k); if(v) return decodeURIComponent(v.trim());}
-      }
-      const m=raw.match(/(?:^|&)id=([^&]+)/i); if(m) return decodeURIComponent(m[1].trim());
-      if(raw && !raw.includes('=') && !raw.includes('/')) return decodeURIComponent(raw.trim());
-      return null;
-    }
-    function getIdFromPath(){
-      const seg=location.pathname.split('/').filter(Boolean);
-      if(!seg.length) return null;
-      const last=seg[seg.length-1], prev=seg[seg.length-2]||'';
-      if((prev==='voucher'||prev==='v'||prev==='voucher.html') && last && !last.includes('.')) return decodeURIComponent(last.trim());
-      return null;
-    }
-    function sanitizeIdLoose(id){
-      if(!id) return null;
-      id=id.replace(/\s+/g,' ').trim();
-      if(id.includes('/')) return null; // docId không được chứa '/'
-      if(id.length>500) id=id.slice(0,500);
-      return id || null;
-    }
-
-    async function getUserLastVoucherId(uid){
-      try{const u=await db.collection('users').doc(uid).get(); return u.exists?(u.data().last_voucher_id||null):null;}catch{return null;}
-    }
-    async function saveUserLastVoucher(uid,vId){
-      try{await db.collection('users').doc(uid).set({last_voucher_id:vId,last_seen_voucher_at:firebase.firestore.FieldValue.serverTimestamp()},{merge:true});}catch(e){}
-    }
-
-    // ===== Read/Claim helpers =====
-    async function findVoucherDoc(vId){
-      const cols=['vouchers','voucher']; // thử cả 2 collection
-      for(const col of cols){
-        try{
-          const snap=await db.collection(col).doc(vId).get();
-          if(snap.exists) return {col,data:snap.data()};
-        }catch(e){
-          if(e.code==='permission-denied') throw { code:'permission-denied', col, err:e };
-        }
-      }
-      return null;
-    }
-    async function tryClaimVoucher(vId, uid){
-      const cols=['vouchers','voucher'];
-      for(const col of cols){
-        try{ await db.collection(col).doc(vId).update({ ownerUid: uid }); return col; }catch(e){}
-      }
-      return null;
-    }
-
-    async function ensureExpiresField(vId,col,data){
-      if(data.expiresAt) return data;
-      const validDays=Number(data.validDays||7);
-      const issuedMs = data.issuedAt?.toDate ? data.issuedAt.toDate().getTime()
-                    : (typeof data.issuedAt==='number'?data.issuedAt:Date.now());
-      const expMs=issuedMs+validDays*86400000;
-      const expiresAt=firebase.firestore.Timestamp.fromDate(new Date(expMs));
-      await db.collection(col).doc(vId).set({expiresAt},{merge:true});
-      return {...data,expiresAt};
-    }
-    async function ensureStatusUpToDate(vId,col,data){
-      const exp = data.expiresAt?.toDate ? data.expiresAt.toDate().getTime()
-                 : (typeof data.expiresAt==='number'?data.expiresAt:null);
-      if(!exp) return data;
-      if(Date.now()>exp && (data.status||'active')==='active'){
-        await db.collection(col).doc(vId).set({status:'expired'},{merge:true});
-        return {...data,status:'expired'};
-      }
-      return data;
-    }
-
-    function renderQRCode(code){
-      const el=$('qrcode'); if(!el) return; el.innerHTML='';
-      const cs=getComputedStyle(document.documentElement);
-      new QRCode(el,{text:code,width:180,height:180,
-        colorDark:cs.getPropertyValue('--text').trim()||'#000',
-        colorLight:cs.getPropertyValue('--card').trim()||'#fff',
-        correctLevel:QRCode.CorrectLevel.H});
-    }
-    let timer=null;
-    function startCountdown(ms){
-      function tick(){
-        let d=ms-Date.now(); if(d<=0){$('remaining').textContent='Đã hết hạn';clearInterval(timer);timer=null;return;}
-        const D=Math.floor(d/86400000); d%=86400000;
-        const H=Math.floor(d/3600000);  d%=3600000;
-        const M=Math.floor(d/60000);    d%=60000;
-        const S=Math.floor(d/1000);
-        $('remaining').textContent=`${D} ngày ${H} giờ ${M} phút ${S} giây`;
-      }
-      tick(); timer=setInterval(tick,1000);
-    }
-
-    (function ThemeSyncV3(){
+  (function ThemeSyncV3(){
     const LS_KEY='voucher-theme';
     const root=document.documentElement;
     const bc=('BroadcastChannel' in window)?new BroadcastChannel('theme-sync'):null;
@@ -380,75 +366,147 @@
       });
     });
   })();
+  </script>
 
-    // ===== MAIN =====
-    auth.onAuthStateChanged(async user=>{
-      if(!user){ toast('Cần đăng nhập','Chuyển tới đăng nhập...','info',()=>location.href='login.html'); return; }
-      try{
-        // 1) Resolve ID: search -> hash -> path -> Firestore(last_voucher_id)
-        let raw = getParamFromSearch(['id','voucher_id','vid']) || getParamFromHash(['id','voucher_id','vid']) || getIdFromPath();
-        if(!raw){ raw = await getUserLastVoucherId(user.uid); }
-        const vId = sanitizeIdLoose(raw);
-        if(!vId){ setStatusBadge('error'); toast('Thiếu/ID sai','Không thấy ID phù hợp (ID không được chứa "/").','error'); return; }
+  <!-- LangSync: i18n Firestore + fallback -->
+  <script>
+  (function LangSync(){
+    const LS_KEY = 'app-lang';
+    const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('lang-sync') : null;
+    const sel = document.getElementById('langSelect');
+    const dictCache = {};
+    let current = null, uid = null, unsubUser = null, suppressNext = false;
 
-        // 2) Lưu last_voucher_id để đồng bộ
-        await saveUserLastVoucher(user.uid, vId);
-
-        // 3) Đọc doc (nếu bị chặn -> claim -> đọc lại)
-        let pack = null;
-        try {
-          pack = await findVoucherDoc(vId);
-        } catch (info) {
-          if (info.code === 'permission-denied') {
-            const claimedCol = await tryClaimVoucher(vId, user.uid);
-            if (claimedCol) pack = await findVoucherDoc(vId);
-            else throw info.err || new Error('permission-denied');
-          } else {
-            throw info.err || info;
-          }
-        }
-
-        if(!pack){ voucherIdEl.textContent=vId; setStatusBadge('error'); toast('Không tìm thấy','Không có doc trong "vouchers" hoặc "voucher".','error'); return; }
-
-        let {col,data}=pack;
-        data = await ensureExpiresField(vId,col,data);
-        data = await ensureStatusUpToDate(vId,col,data);
-
-        // 4) Render
-        window.__lastVoucherId=vId;
-        voucherIdEl.textContent=vId;
-        giftNameEl.textContent=data.giftName||'—';
-        const issued  = data.issuedAt?.toDate ? data.issuedAt.toDate() : (typeof data.issuedAt==='number'?new Date(data.issuedAt):null);
-        const expires = data.expiresAt?.toDate ? data.expiresAt.toDate() : (typeof data.expiresAt==='number'?new Date(data.expiresAt):null);
-        issuedAtEl.textContent= issued ? issued.toLocaleString('vi-VN') : '—';
-        expiresAtEl.textContent=expires ? expires.toLocaleString('vi-VN') : '—';
-        setStatusBadge(data.status||'active');
-        renderQRCode(vId);
-        if(expires) startCountdown(expires.getTime()); else remainingEl.textContent='—';
-
-        toast('OK','Voucher đã sẵn sàng.','success');
-
-        // 5) Đánh dấu đã dùng
-        useBtn.onclick=async()=>{
-          try{
-            await db.collection(col).doc(vId).set({status:'used'},{merge:true});
-            setStatusBadge('used'); toast('Thành công','Đã đánh dấu voucher là ĐÃ DÙNG.','success');
-            await db.collection('users').doc(user.uid).set({
-              last_used_voucher_id:vId,
-              last_used_at: firebase.firestore.FieldValue.serverTimestamp()
-            },{merge:true});
-          }catch(e){ toast('Lỗi','Không thể cập nhật trạng thái: '+e.message,'error'); }
-        };
-      }catch(e){
-        console.error(e);
-        const code = e?.code || '';
-        if (code === 'permission-denied') {
-          toast('Quyền bị chặn','Bạn không có quyền đọc voucher này (ownerUid khác bạn).', 'error');
-        } else {
-          toast('Lỗi tải', e.message || 'Không thể tải voucher.', 'error');
-        }
+    const fallback = {
+      vi: {
+        titlePage:'Chi tiết voucher',
+        pageTitle:'Chi tiết voucher',
+        loading:'Đang tải...',
+        library:'Thư viện',
+        codeLabel:'Mã',
+        giftLabel:'Tên quà',
+        issuedAt:'Ngày cấp',
+        expiresAt:'Hạn dùng',
+        timeLeft:'Thời gian còn lại',
+        expiredBadge:'Đã hết hạn',
+        usedBadge:'Đã dùng',
+        activeBadge:'Đang hiệu lực',
+        back:'Quay lại',
+        markUsed:'Đánh dấu đã dùng',
+        restore:'Khôi phục trạng thái',
+        copyCode:'Copy',
+        copied:'Đã sao chép',
+        notFoundMsg:'Không tìm thấy voucher.',
+        loadErr:'Lỗi tải voucher: ',
+        updateSuccess:'Cập nhật thành công',
+        updateFail:'Cập nhật thất bại',
+        statusUsed:'Đã đánh dấu là đã dùng.',
+        statusActive:'Đã khôi phục trạng thái hoạt động.',
+        qrTitle:'Quét QR để sử dụng tại quầy'
+      },
+      en: {
+        titlePage:'Voucher details',
+        pageTitle:'Voucher details',
+        loading:'Loading...',
+        library:'Library',
+        codeLabel:'Code',
+        giftLabel:'Gift',
+        issuedAt:'Issued at',
+        expiresAt:'Expires at',
+        timeLeft:'Time left',
+        expiredBadge:'Expired',
+        usedBadge:'Used',
+        activeBadge:'Active',
+        back:'Back',
+        markUsed:'Mark as used',
+        restore:'Restore status',
+        copyCode:'Copy',
+        copied:'Copied',
+        notFoundMsg:'Voucher not found.',
+        loadErr:'Failed to load voucher: ',
+        updateSuccess:'Updated successfully',
+        updateFail:'Update failed',
+        statusUsed:'Marked as used.',
+        statusActive:'Restored to active.',
+        qrTitle:'Scan QR at counter'
       }
+    };
+
+    function sys(){ const n=(navigator.language||'vi').toLowerCase(); return n.startsWith('vi')?'vi':'en'; }
+    function getLocal(){ try{return localStorage.getItem(LS_KEY)}catch{return null} }
+    function setLocal(v){ try{ localStorage.setItem(LS_KEY, v) }catch{} }
+
+    async function loadDict(lang){
+      if (dictCache[lang]) return dictCache[lang];
+      try{
+        const snap = await db.collection('i18n').doc(lang).get();
+        if (snap.exists){ dictCache[lang] = { ...fallback[lang], ...(snap.data()||{}) }; return dictCache[lang]; }
+      }catch(e){}
+      dictCache[lang] = fallback[lang] || {}; return dictCache[lang];
+    }
+
+    function applyDict(dict){
+      document.querySelectorAll('[data-i18n]').forEach(el=>{
+        const k = el.getAttribute('data-i18n');
+        if (k && dict[k] != null) el.textContent = dict[k];
+      });
+      if (dict.titlePage) document.title = dict.titlePage;
+    }
+
+    async function applyLang(lang){
+      current = lang; if (sel) sel.value = lang; setLocal(lang);
+      const dict = await loadDict(lang); window.__i18n = dict; applyDict(dict);
+      if (bc) bc.postMessage({ type:'lang-applied', lang });
+      try{ window.dispatchEvent(new CustomEvent('langchange', { detail:{ lang } })); }catch{}
+    }
+
+    window.LangManager = {
+      get(){ return current || getLocal() || sys(); },
+      async set(lang){ if (!lang) return; await applyLang(lang); },
+      t(k, fb){ const d = window.__i18n || {}; return (d[k] != null ? d[k] : (fb||'')); }
+    };
+
+    sel?.addEventListener('change', e=> window.LangManager.set(e.target.value));
+
+    (async ()=>{ const initial = getLocal() || sys(); await applyLang(initial); })();
+
+    // Đồng bộ theo tài khoản
+    auth.onAuthStateChanged(async (user)=>{
+      if (unsubUser){ unsubUser(); unsubUser = null; }
+      uid = user?.uid || null;
+
+      if (!uid){ const lang = getLocal() || sys(); await applyLang(lang); return; }
+
+      const userRef = db.collection('users').doc(uid);
+      const snap = await userRef.get();
+      let remoteLang = snap.exists ? (snap.data()?.prefs?.lang || null) : null;
+
+      if (!remoteLang){
+        remoteLang = getLocal() || sys();
+        await applyLang(remoteLang);
+        try{ await userRef.set({ prefs:{ lang:remoteLang, updatedAt: firebase.firestore.FieldValue.serverTimestamp() } }, { merge:true }); }catch{}
+      } else {
+        setLocal(remoteLang);
+        await applyLang(remoteLang);
+      }
+
+      unsubUser = userRef.onSnapshot(s=>{
+        if (!s.exists) return;
+        const v = s.data()?.prefs?.lang; if (!v) return;
+        if (suppressNext) return;
+        if (v !== current){ setLocal(v); applyLang(v); }
+      });
     });
+
+    // Sync đa tab
+    if (bc){
+      bc.onmessage = (ev)=>{
+        if (ev?.data?.type === 'lang-applied'){
+          const lang = ev.data.lang; if (lang && lang !== current) applyLang(lang);
+        }
+      };
+    }
+  })();
   </script>
 </body>
 </html>
