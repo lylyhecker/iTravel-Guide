@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>iTravel Guide</title>
+  <meta name="description" content="iTravel Guide - Cẩm nang du lịch, gợi ý địa điểm hấp dẫn, trải nghiệm thú vị." />
+
+  <!-- Favicon theo theme -->
+  <link id="favicon" rel="icon" type="image/svg+xml" href="assets/favicon-light.svg" />
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Leaflet (map) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    :root{ --bg:#0b1020; --bg-soft:#11162a; --card:#121a33; --text:#e7ecf7; --muted:#a8b2d1; --primary:#7aa2ff; --primary-strong:#5a86ff; --ok:#22c55e; --err:#ef4444; --border:rgba(255,255,255,.08); --shadow:0 10px 30px rgba(0,0,0,.25); }
+    @media (prefers-color-scheme: light){
+      :root{ --bg:#f6f8fa; --bg-soft:#eef1f6; --card:#ffffff; --text:#111827; --muted:#6b7280; --primary:#2563eb; --primary-strong:#1e40af; --ok:#16a34a; --err:#dc2626; --border:rgba(0,0,0,.08); --shadow:0 10px 30px rgba(0,0,0,.08); }
+    }
+    :root[data-theme="light"]{ --bg:#f6f8fa; --bg-soft:#eef1f6; --card:#ffffff; --text:#111827; --muted:#6b7280; --primary:#2563eb; --primary-strong:#1e40af; --ok:#16a34a; --err:#dc2626; --border:rgba(0,0,0,.08); --shadow:0 10px 30px rgba(0,0,0,.08); }
+    :root[data-theme="dark"]{ --bg:#0b1020; --bg-soft:#11162a; --card:#121a33; --text:#e7ecf7; --muted:#a8b2d1; --primary:#7aa2ff; --primary-strong:#5a86ff; --ok:#22c55e; --err:#ef4444; --border:rgba(255,255,255,.08); --shadow:0 10px 30px rgba(0,0,0,.25); }
+
+    body{margin:0; color:var(--text); font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Inter,Roboto,Arial;
+      background: radial-gradient(1200px 600px at 10% -10%, rgba(122,162,255,.18), transparent 60%),
+                  radial-gradient(900px 500px at 110% 10%, rgba(125,211,252,.16), transparent 60%), var(--bg);} 
+    .card{ background:var(--card); color:var(--text); border:1px solid var(--border); border-radius:18px; box-shadow:var(--shadow); }
+    .btn{ appearance:none; border:none; cursor:pointer; background:var(--primary); color:#fff; font-weight:700; padding:10px 14px; border-radius:12px; transition:transform .12s ease, background .2s ease; box-shadow:0 6px 18px rgba(37,99,235,.25); display:inline-flex; align-items:center; gap:8px; justify-content:center; text-decoration:none; }
+    .btn:hover{ transform:translateY(-1px); background:var(--primary-strong); }
+    .btn.secondary{ background:transparent; color:var(--text); border:1px solid var(--border); box-shadow:none; }
+    .btn.secondary:hover{ background:var(--bg-soft); }
+    .icon{width:18px;height:18px;object-fit:contain;display:inline-block;vertical-align:-0.2em}
+    .icon.themable{ filter:none; transition:filter .2s ease; }
+    :root[data-theme="dark"] img.icon.themable{ filter: invert(1) brightness(1.1) contrast(1.05); }
+
+    #map{height: 360px}
+    @media (min-width: 1024px){ #map{height: calc(100vh - 200px);} }
+
+    .badge{border:1px solid var(--border); background:var(--bg-soft); border-radius:12px; padding:6px 10px}
+    .hl-sent{background:rgba(250,204,21,.35);border-radius:.3em;padding:0 .15em;transition:background .2s ease}
+
+    /* Quiz UI */
+    .quiz-card { background: var(--bg-soft); border:1px solid var(--border); border-radius:14px; padding:14px; }
+    .quiz-choice { display:flex; gap:10px; align-items:flex-start;
+      border:1px solid var(--border); border-radius:12px; padding:10px 12px; cursor:pointer; user-select:none;
+      transition: transform .06s ease, background .15s ease, border-color .15s ease;
+    }
+    .quiz-choice:hover { transform: translateY(-1px); }
+    .quiz-choice.correct { background: rgba(34,197,94,.12); border-color: rgba(34,197,94,.4); }
+    .quiz-choice.wrong   { background: rgba(239,68,68,.12); border-color: rgba(239,68,68,.4); }
+    .quiz-progress { height:8px; border-radius:999px; background:var(--bg-soft); overflow:hidden; border:1px solid var(--border); }
+    .quiz-progress > div { height:100%; background:var(--primary); width:0%; transition:width .25s ease; }
+    .quiz-badge { font-size:12px; padding:3px 8px; border-radius:999px; border:1px solid var(--border); background:var(--bg-soft); }
+    .quiz-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .quiz-stats { display:flex; gap:10px; align-items:center; font-size:14px; color: var(--muted); }
+    .quiz-explain { font-size:14px; color: var(--muted); border-left:3px solid var(--border); padding-left:10px; }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="px-4 lg:px-8 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <img src="assets/location.svg" class="icon themable" alt="pin" />
+      <h1 class="text-xl lg:text-2xl font-semibold">iTravel Guide</h1>
+    </div>
+
+    <div class="flex items-center gap-4">
+      <div class="flex flex-col items-end gap-1">
+        <span id="userName" class="text-sm font-medium"></span>
+        <div class="flex items-center gap-2">
+          <div id="xp-bar-container"
+              class="h-[8px] w-[160px] rounded-full overflow-hidden border"
+              style="background:var(--bg-soft); border-color:var(--border)">
+            <div id="xp-bar-fill" class="h-full"
+                style="width:0%; background:linear-gradient(90deg, var(--primary), #60a5fa); transition:width .35s ease"></div>
+          </div>
+          <span id="xp-label" class="text-xs text-[color:var(--muted)]">Lv 1 · 0/100</span>
+        </div>
+      </div>
+
+      <a href="voucher.html" class="btn secondary">
+        <img src="assets/ticket.svg" class="icon themable" alt=""> <span data-i18n="voucher">Voucher</span>
+      </a>
+
+      <button class="btn secondary" id="themeBtn" title="Đổi giao diện">
+        <img id="themeIcon" src="assets/theme-light.svg" class="icon" alt="theme">
+      </button>
+
+      <select id="langSelect" class="btn secondary" title="Language">
+        <option value="vi">🇻🇳 VI</option>
+        <option value="en">🇬🇧 EN</option>
+      </select>
+
+      <button class="btn secondary" id="loginBtn" title="Đăng nhập">
+        <img src="assets/user.svg" class="icon themable" alt=""> <span data-i18n="login">Đăng nhập</span>
+      </button>
+      <button class="btn secondary hidden" id="logoutBtn" title="Đăng xuất">
+        <img src="assets/exit.svg" class="icon themable" alt=""> <span data-i18n="logout">Đăng xuất</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="px-4 lg:px-8 pb-10 grid lg:grid-cols-2 gap-6">
+    <section class="card p-4 lg:p-6">
+      <div class="flex flex-col lg:flex-row lg:items-end gap-3 mb-4">
+        <div class="flex-1">
+          <label class="text-sm text-[color:var(--muted)]" data-i18n="choosePlace">Chọn địa điểm</label>
+          <select id="placeSelect" class="w-full mt-1 bg-transparent border rounded-lg px-3 py-2" style="border-color:var(--border)"></select>
+        </div>
+        <div class="flex gap-2">
+          <button id="centerBtn" class="btn secondary"><img src="assets/target.svg" class="icon themable" alt=""> <span data-i18n="centerMap">Đưa bản đồ tới điểm</span></button>
+          <button id="locateBtn" class="btn secondary"><img src="assets/gps.svg" class="icon themable" alt=""> <span data-i18n="myLocation">Vị trí của tôi</span></button>
+        </div>
+      </div>
+      <div id="map" class="rounded-xl overflow-hidden"></div>
+      <div class="flex items-center gap-3 mt-4">
+        <span class="text-sm text-[color:var(--muted)]" data-i18n="distanceTo">Khoảng cách tới điểm:</span>
+        <strong id="distance">—</strong>
+        <label class="ml-auto flex items-center gap-2 text-sm">
+          <input id="autoplay" type="checkbox" class="scale-125"> <span data-i18n="autoplayNear">Tự phát khi ≤100m</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="card p-4 lg:p-6 flex flex-col gap-4">
+      <div>
+        <h2 id="placeTitle" class="text-2xl font-semibold"></h2>
+        <p class="text-sm text-[color:var(--muted)] mt-1" data-i18n="subtitle">Thuyết minh | Quiz (AI) | Map</p>
+      </div>
+      <div class="space-y-3">
+        <div class="text-sm text-[color:var(--muted)]" data-i18n="introQuick">Giới thiệu nhanh</div>
+        <p id="intro" class="leading-relaxed"></p>
+      </div>
+      <div class="grid sm:grid-cols-2 gap-3">
+        <button id="aiReadBtn" class="btn"><img src="assets/volume.svg" alt="" class="icon themable"> <span data-i18n="tts">Máy đọc thuyết minh</span></button>
+        <button id="stopReadBtn" class="btn secondary"><img src="assets/stop.svg" alt="" class="icon themable"> <span data-i18n="stop">Dừng đọc</span></button>
+      </div>
+      <div class="border-t border-dashed" style="border-color:var(--border)"></div>
+      <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+        <div>
+          <div class="font-medium" data-i18n="quizTitle">Trắc nghiệm AI</div>
+          <div class="text-sm text-[color:var(--muted)]" data-i18n="quizHint">Luôn gắn với địa điểm đang chọn, tránh lặp câu</div>
+        </div>
+        <div class="quiz-actions">
+          <button id="startQuiz" class="btn"><img src="assets/play.svg" alt="" class="icon themable"> <span data-i18n="createQuestion">Tạo câu hỏi</span></button>
+          <button id="endQuiz" class="btn secondary"><img src="assets/stop.svg" alt="" class="icon themable"> <span data-i18n="end">Kết thúc</span></button>
+        </div>
+      </div>
+      <div id="quizBox" class="hidden mt-2">
+        <div class="quiz-card">
+          <div class="quiz-progress"><div id="qprog"></div></div>
+          <div id="qwrap" class="mt-3"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+
+  <script>
+  const firebaseConfig={ apiKey:"AIzaSyDOhTKHU4P3jJ7aTkvSiewNoHu1_KXkcrU", authDomain:"loginandsignin-4932b.firebaseapp.com", projectId:"loginandsignin-4932b" };
+  if(!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  const auth=firebase.auth();
+  const db=firebase.firestore();
+  </script>
+
+  <!-- Load & render places -->
+  <script>
+  const DATA_INDEX_URL='data/places.json';
+  let PLACES=[], currentPlace=null, currentReadText='';
+
+  async function loadPlaces(){
+    const r=await fetch(DATA_INDEX_URL,{cache:'no-store'});
+    PLACES=await r.json();
+    const sel=document.getElementById('placeSelect');
+    sel.innerHTML='';
+    PLACES.forEach(p=>{
+      const o=document.createElement('option');
+      o.value=p.id; o.textContent=p.name;
+      sel.appendChild(o);
+    });
+    currentPlace=PLACES[0];
+    sel.value=currentPlace.id;
+    renderPlace();
+  }
+
+  async function loadReadForCurrent(){
+    currentReadText='';
+    const lang=LangManager.get();
+    const url=(lang==='en' && currentPlace.read_url_en)? currentPlace.read_url_en : currentPlace.read_url;
+    if(url){
+      try{ const r=await fetch(url,{cache:'no-store'}); currentReadText=await r.text(); }catch{}
+    }
+    if(!currentReadText){
+      currentReadText=(lang==='en'? currentPlace.intro_en : currentPlace.intro) || '';
+    }
+    document.getElementById('intro').textContent=currentReadText;
+  }
+
+  async function renderPlace(){
+    document.getElementById('placeTitle').textContent=currentPlace?.name||'';
+    await loadReadForCurrent();
+  }
+
+  document.addEventListener('DOMContentLoaded', async ()=>{
+    await loadPlaces();
+    document.getElementById('placeSelect').addEventListener('change',e=>{
+      currentPlace=PLACES.find(p=>p.id===e.target.value); renderPlace();
+    });
+  });
+  </script>
+
+  <!-- LangManager giả định (đơn giản) -->
+  <script>
+  window.LangManager={
+    current:'vi',
+    get(){return this.current;},
+    set(l){this.current=l; renderPlace();}
+  };
+  document.getElementById('langSelect').addEventListener('change',e=>{
+    window.LangManager.set(e.target.value);
+  });
+  </script>
+</body>
+</html>
