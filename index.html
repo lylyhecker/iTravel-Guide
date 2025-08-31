@@ -463,7 +463,15 @@
     setProg();
     renderPlace();
   }
-  async function renderPlace(){ $('#placeTitle').textContent=currentPlace?.name||''; await loadReadForCurrent(); if(map&&currentPlace?.coords) map.setView(currentPlace.coords,16); placeMarkers[currentPlace.id]?.openPopup?.(); }
+  async function renderPlace(){
+    const lang = LangManager.get();
+    const title = (lang === 'en' && currentPlace?.name_en) ? currentPlace.name_en : (currentPlace?.name || '');
+    $('#placeTitle').textContent = title;
+    await loadReadForCurrent();
+    if(map&&currentPlace?.coords) map.setView(currentPlace.coords,16);
+    placeMarkers[currentPlace.id]?.openPopup?.();
+  }
+
   function startGeowatch(){
     if(!navigator.geolocation || watchingId!==null) return;
     watchingId=navigator.geolocation.watchPosition(pos=>{
@@ -477,18 +485,32 @@
   }
 
   /* ===================== Reading + Highlight ===================== */
-  function getVietnamVoice(){ const vs=speechSynthesis.getVoices(); return vs.find(v=>/vi|Viet|Vie/i.test(v.lang||v.name)) || vs[0]; }
+  function getVoiceByLang(target){
+    const vs = speechSynthesis.getVoices();
+    return vs.find(v => (v.lang||'').toLowerCase().startsWith(target))
+        || vs.find(v => new RegExp(target.split('-')[0],'i').test(v.lang||v.name))
+        || vs[0];
+  }
+  
   function aiRead(){
-    const introEl=$('#intro');
-    const text=((currentPlace?.name? currentPlace.name+'. ' : '') + (currentReadText||'')).replace(/\s+/g,' ').trim();
-    const sentences=text.split(/(?<=[\.\!\?…])\s+/);
+    const lang = LangManager.get();
+    const introEl = $('#intro');
+    const text = ((currentPlace?.name? currentPlace.name+'. ' : '') + (currentReadText||'')).replace(/\s+/g,' ').trim();
+    const sentences = text.split(/(?<=[\.\!\?…])\s+/);
     if(introEl){ introEl.innerHTML=''; const c=document.createElement('span'); sentences.forEach((s,i)=>{ const sp=document.createElement('span'); sp.textContent=(i?' ':'')+s; sp.dataset.idx=i; c.appendChild(sp); }); introEl.appendChild(c); }
-    speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(text); u.lang='vi-VN'; const v=getVietnamVoice(); if(v) u.voice=v;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = (lang === 'en' ? 'en-US' : 'vi-VN');
+    const v = getVoiceByLang(u.lang.toLowerCase());
+    if(v) u.voice = v;
     const offsets=[]; let acc=0; sentences.forEach((s,i)=>{ offsets.push(acc); acc+=(i?1:0)+s.length; });
     function hi(x){ if(!introEl) return; let k=0; for(let i=0;i<offsets.length;i++){ if(offsets[i]<=x) k=i; } introEl.querySelectorAll('span').forEach(el=> el.classList.toggle('hl-sent', Number(el.dataset.idx)===k)); }
-    u.onboundary=(e)=>{ if(e.charIndex!=null) hi(e.charIndex||0); }; u.onstart=()=>hi(0); u.onend=()=> introEl?.querySelectorAll('span').forEach(el=> el.classList.remove('hl-sent'));
+    u.onboundary=(e)=>{ if(e.charIndex!=null) hi(e.charIndex||0); };
+    u.onstart=()=>hi(0);
+    u.onend=()=> introEl?.querySelectorAll('span').forEach(el=> el.classList.remove('hl-sent'));
     speechSynthesis.speak(u);
   }
+
   function stopRead(){ try{ speechSynthesis.cancel(); }catch{} }
 
   /* ===================== Quiz AI: tránh lặp + bám địa điểm ===================== */
@@ -849,6 +871,15 @@ Giải thích: [Giải thích ngắn gọn, chính xác]
     document.addEventListener('DOMContentLoaded', function(){ applyUserHeaderName(null); });
   }
 </script>
+
+<script>
+// … cuối file, sau khi định nghĩa các hàm render …
+window.addEventListener('langchange', async (e)=>{
+  // Cập nhật tiêu đề & thuyết minh theo ngôn ngữ mới
+  await renderPlace();
+});
+</script>
   
 </body>
 </html>
+
