@@ -408,33 +408,95 @@
     return 2*R*Math.asin(Math.sqrt(h));
   };
 
-  async function loadPlaces(){
-    const r=await fetch(DATA_INDEX_URL,{cache:'no-store'});
-    PLACES=await r.json();
-    const sel=document.getElementById('placeSelect');
-    sel.innerHTML='';
-    PLACES.forEach(p=>{
-      const o=document.createElement('option');
-      o.value=p.id; o.textContent=p.name;
+  async function loadPlaces() {
+    try {
+      const r = await fetch(DATA_INDEX_URL, { cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      PLACES = await r.json();
+    } catch (e) {
+      console.warn('Không tải được data/places.json. Fallback 1 điểm.', e);
+      PLACES = [{
+        id: 'dai-noi-hue',
+        name: 'Đại Nội Huế',
+        coords: [16.46974, 107.57969],
+        intro: 'Đại Nội Huế là quần thể cung điện và thành quách của triều Nguyễn.',
+        intro_en: 'The Imperial City of Hue is the royal citadel complex of the Nguyen dynasty.',
+        read_url: '',
+        read_url_en: '',
+        quiz_url: ''
+      }];
+    }
+
+    const sel = $('#placeSelect') || document.getElementById('placeSelect');
+    if (!sel) return;
+
+    // Đổ option
+    sel.innerHTML = '';
+    PLACES.forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.id;
+      o.textContent = p.name;
       sel.appendChild(o);
     });
-    currentPlace=PLACES[0];
-    sel.value=currentPlace.id;
-    renderPlace();
+
+    // Ưu tiên 'dai-noi-hue' nếu có
+    currentPlace = PLACES.find(p => p.id === 'dai-noi-hue') || PLACES[0] || null;
+    if (currentPlace) {
+      sel.value = currentPlace.id;
+      // Sau khi chọn xong → render
+      await renderPlace();
+    }
+
+    // Lắng nghe đổi địa điểm
+    sel.addEventListener('change', (e) => {
+      const id = e.target.value;
+      currentPlace = PLACES.find(p => p.id === id) || PLACES[0] || null;
+      renderPlace();
+    });
   }
 
-  async function loadReadForCurrent(){
-      currentReadText='';
-      const lang=LangManager.get();
-      const url=(lang==='en' && currentPlace.read_url_en)? currentPlace.read_url_en : currentPlace.read_url;
-      if(url){
-        try{ const r=await fetch(url,{cache:'no-store'}); currentReadText=await r.text(); }catch{}
-      }
-      if(!currentReadText){
-        currentReadText=(lang==='en'? currentPlace.intro_en : currentPlace.intro) || '';
-      }
-      document.getElementById('intro').textContent=currentReadText;
+
+  async function loadReadForCurrent() {
+    currentReadText = '';
+    if (!currentPlace) {
+      const introEl = document.getElementById('intro');
+      if (introEl) introEl.textContent = '';
+      return;
     }
+
+    const lang = (window.LangManager && typeof LangManager.get === 'function')
+      ? LangManager.get()
+      : 'vi';
+
+    const url = (lang === 'en' && currentPlace.read_url_en)
+      ? currentPlace.read_url_en
+      : currentPlace.read_url;
+
+    if (url) {
+      try {
+        const r = await fetch(url, { cache: 'no-store' });
+        if (r.ok) currentReadText = await r.text();
+      } catch (e) {
+        console.warn('Không tải được file thuyết minh:', url, e);
+      }
+    }
+
+    if (!currentReadText) {
+      currentReadText = (lang === 'en'
+        ? (currentPlace.intro_en || '')
+        : (currentPlace.intro || ''));
+    }
+
+    const introEl = document.getElementById('intro');
+    if (introEl) introEl.textContent = currentReadText;
+  }
+
+  /** Gọi khi đổi địa điểm hoặc đổi ngôn ngữ */
+  async function renderPlace() {
+    const titleEl = document.getElementById('placeTitle');
+    if (titleEl) titleEl.textContent = currentPlace?.name || '';
+    await loadReadForCurrent();
+  }
 
   function initMap(){
     map=L.map('map').setView([16.46974,107.57969],13);
