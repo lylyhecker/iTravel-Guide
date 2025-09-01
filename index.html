@@ -515,8 +515,8 @@
 
   /* ===================== Quiz AI: tránh lặp + bám địa điểm ===================== */
 
-  window.GEMINI_KEY = window.GEMINI_KEY || 'AIzaSyD1DdWMyjh5ne8zpJKXJ8GdxB1k2a8INOM';
-
+  // DÙNG PROXY — KHÔNG CÒN KEY TRÊN CLIENT
+  window.AI_PROXY_URL = window.AI_PROXY_URL || 'https://itravel-guide.baovagiao.workers.dev/gemini';
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
   async function callGemini(messages) {
@@ -529,7 +529,7 @@
       const model = models[mi];
       for (let attempt = 0; attempt < maxRetries; attempt++){
         try {
-          const endpoint = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${encodeURIComponent(window.GEMINI_KEY)}`;
+          const endpoint = window.AI_PROXY_URL;
           const res = await fetch(endpoint, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
