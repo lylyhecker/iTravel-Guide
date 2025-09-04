@@ -515,8 +515,8 @@
 
   /* ===================== Quiz AI: tránh lặp + bám địa điểm ===================== */
 
-  // DÙNG PROXY — KHÔNG CÒN KEY TRÊN CLIENT
-  window.AI_PROXY_URL = window.AI_PROXY_URL || 'https://itravel-guide.baovagiao.workers.dev/gemini';
+  window.GEMINI_KEY = window.GEMINI_KEY || 'AIzaSyD1DdWMyjh5ne8zpJKXJ8GdxB1k2a8INOM';
+
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
   async function callGemini(messages) {
@@ -529,7 +529,7 @@
       const model = models[mi];
       for (let attempt = 0; attempt < maxRetries; attempt++){
         try {
-          const endpoint = window.AI_PROXY_URL;
+          const endpoint = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${encodeURIComponent(window.GEMINI_KEY)}`;
           const res = await fetch(endpoint, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -620,22 +620,48 @@ Giải thích: ${it.explain||''}`;
   function buildQuizMessages(){
     const ctx = getPlaceContext();
     const avoid = buildAvoidList();
+    const lang = LangManager.get();
 
-    const placeHint = ctx.name ? `ĐỊA ĐIỂM: ${ctx.name} ${ctx.coords?ctx.coords:''}` : '';
-    const facts = ctx.intro ? `TÓM TẮT THUYẾT MINH:
-${ctx.intro}
-` : '';
-    const avoidBlk = avoid ? `KHÔNG ĐƯỢC LẶP LẠI các câu gần đây:
-${avoid}
-` : '';
+    const placeHint = (lang==='en'
+      ? (ctx.name ? `PLACE: ${ctx.name} ${ctx.coords?ctx.coords:''}` : '')
+      : (ctx.name ? `ĐỊA ĐIỂM: ${ctx.name} ${ctx.coords?ctx.coords:''}` : '')
+    );
 
-    const userPrompt = `
+    const facts = ctx.intro
+      ? (lang==='en' ? `SUMMARY:\n${ctx.intro}\n` : `TÓM TẮT THUYẾT MINH:\n${ctx.intro}\n`)
+      : '';
+
+    const avoidBlk = avoid
+      ? (lang==='en'
+          ? `DO NOT REPEAT recently shown questions:\n${avoid}\n`
+          : `KHÔNG ĐƯỢC LẶP LẠI các câu gần đây:\n${avoid}\n`
+        )
+      : '';
+
+    const userPrompt = (lang === 'en' ? `
+${placeHint}
+${facts}
+
+REQUIREMENTS:
+- Create ONE NEW MULTIPLE-CHOICE QUESTION directly related to the place above (history/architecture/culture...).
+- The content must be ACCURATE, concise, in ENGLISH, not political/sensitive.
+- Do NOT repeat or paraphrase recent questions.
+${avoidBlk}
+
+OUTPUT FORMAT (EXACTLY):
+[Clear question, 1–2 lines]
+A. [Choice A]
+B. [Choice B]
+C. [Choice C]
+Correct answer: [A/B/C]
+Explanation: [Short, correct explanation]
+` : `
 ${placeHint}
 ${facts}
 
 YÊU CẦU:
 - Tạo 01 câu hỏi TRẮC NGHIỆM MỚI, LIÊN QUAN TRỰC TIẾP tới địa điểm trên (lịch sử/kiến trúc/văn hoá...).
-- Nội dung CHÍNH XÁC, ngắn gọn, tiếng Việt, không chính trị/nhạy cảm.
+- Nội dung CHÍNH XÁC, ngắn gọn, bằng TIẾNG VIỆT, không chính trị/nhạy cảm.
 - KHÔNG trùng/paraphrase các câu đã xuất gần đây.
 ${avoidBlk}
 
@@ -646,30 +672,34 @@ B. [Lựa chọn B]
 C. [Lựa chọn C]
 Đáp án đúng: [A/B/C]
 Giải thích: [Giải thích ngắn gọn, chính xác]
-`.trim();
+`).trim();
 
     return [
-      { role:'system', content:'Bạn là trợ lý tạo quiz cho du khách ở Huế. Chỉ trả về đúng định dạng yêu cầu. Không thêm thừa.' },
+      { role:'system', content:(lang==='en'
+          ? 'You are a quiz assistant for tourists in Hue. Respond ONLY in English following the exact format.'
+          : 'Bạn là trợ lý tạo quiz cho du khách ở Huế. Chỉ trả về đúng định dạng yêu cầu. Không thêm thừa.'
+        )
+      },
       { role:'user', content: userPrompt }
     ];
-  }
-
-  function parseAIQuestion(output){
+}
+function parseAIQuestion(output){
     if(!output) return null;
     const lines = output.split('\n').map(l=>l.trim()).filter(Boolean);
     const options = lines.filter(l => /^[ABC][.:、]/i.test(l));
-    const correctLine = lines.find(l => l.toLowerCase().startsWith('đáp án đúng'));
-    const explainLine = lines.find(l => l.toLowerCase().startsWith('giải thích'));
+    const correctLine = lines.find(l => /^đáp án đúng\s*:/i.test(l) || /^correct answer\s*:/i.test(l));
+    const explainLine  = lines.find(l => /^giải thích\s*:/i.test(l)   || /^explanation\s*:/i.test(l));
     const question = lines.find(l =>
       !/^[ABC][.:、]/i.test(l) &&
-      !l.toLowerCase().startsWith('đáp án đúng') &&
-      !l.toLowerCase().startsWith('giải thích')
+      !/^đáp án đúng\s*:/i.test(l) && !/^correct answer\s*:/i.test(l) &&
+      !/^giải thích\s*:/i.test(l)   && !/^explanation\s*:/i.test(l)
     );
     if(!question || options.length < 3 || !correctLine || !explainLine) return null;
     const correctAnswer = (correctLine.split(':')[1] || '').trim().charAt(0).toUpperCase();
-    const explanation = (explainLine.split(':')[1] || '').trim();
+    const explanation   = (explainLine.split(':')[1]  || '').trim();
     return { question, options, correctAnswer, explanation };
-  }
+}
+
 
   let qIdx=0, qScore=0, qGained=0;
   function perPoints(){ return 5; }
