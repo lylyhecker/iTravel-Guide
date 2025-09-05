@@ -489,28 +489,111 @@
 
 
   function startGeowatch(){
-    if(!navigator.geolocation || watchingId!==null) return;
-    watchingId=navigator.geolocation.watchPosition(pos=>{
-    const here = [pos.coords.latitude, pos.coords.longitude];
+    // === Utils nhanh ===
+const R = 6371000; // bán kính Trái Đất (m)
+const toRad = d => d * Math.PI / 180;
 
-    // GUARD: nếu chưa có currentPlace hoặc thiếu coords thì thoát sớm
-    if (!currentPlace?.coords || !Array.isArray(currentPlace.coords)) {
-      $('#distance').textContent = '—';
+// Equirectangular: đủ chính xác < ~50 km, nhanh hơn Haversine
+function fastDistanceMeters(a, b) {
+  const [lat1, lon1] = a, [lat2, lon2] = b;
+  const φm = toRad((lat1 + lat2) / 2);
+  const x = toRad(lon2 - lon1) * Math.cos(φm);
+  const y = toRad(lat2 - lat1);
+  return Math.sqrt(x*x + y*y) * R;
+}
+
+// Batch DOM update
+let rafPending = false;
+function raf(fn) {
+  if (rafPending) return;
+  rafPending = true;
+  requestAnimationFrame(() => { rafPending = false; fn(); });
+}
+
+function startGeowatch() {
+  // Precompute target (điểm spot)
+  let target = null;
+  function recomputeTarget() {
+    if (!currentPlace?.coords) { target = null; return; }
+    const [tlat, tlon] = currentPlace.coords;
+    target = { lat: tlat, lon: tlon };
+  }
+  recomputeTarget();
+  window.addEventListener('placechange', recomputeTarget);
+  window.addEventListener('langchange', () => { /* không ảnh hưởng */ });
+
+  // Throttle + chỉ update khi có thay đổi đáng kể
+  const UPDATE_EVERY_MS = 600;     // tối đa ~1.6 lần/giây
+  const MIN_MOVE_M = 5;            // bỏ qua nhiễu < 5 m
+  const MIN_DELTA_DIST_M = 1;      // chỉ đổi text khi chênh >=1m
+  let lastTick = 0;
+  let lastPos = null;
+  let lastDist = null;
+
+  function applyHere(here) {
+    if (!target) {
+      // chưa có điểm đích → chỉ cập nhật marker người dùng
       if (!userMarker) {
-        userMarker = L.circleMarker(here, {radius: 8, color: '#4ade80'})
+        userMarker = L.circleMarker(here, { radius: 8, color: '#4ade80' })
           .addTo(map).bindPopup('Bạn đang ở đây');
       } else {
         userMarker.setLatLng(here);
       }
       return;
     }
-    const d = haversine(here, currentPlace.coords);
-    $('#distance').textContent = fmtDist(d);
-      $('#distance').textContent=fmtDist(d);
-      if(!userMarker){ userMarker=L.circleMarker(here,{radius:8,color:'#4ade80'}).addTo(map).bindPopup('Bạn đang ở đây'); }
-      else userMarker.setLatLng(here);
-      if($('#autoplay').checked && d<=100 && !withinPlayed){ withinPlayed=true; aiRead(); }
-    }, e=>console.warn('geo',e), {enableHighAccuracy:true, maximumAge:5000, timeout:15000});
+
+    // Bỏ qua nếu di chuyển ít
+    if (lastPos && fastDistanceMeters(here, lastPos) < MIN_MOVE_M) return;
+
+    const dist = fastDistanceMeters(here, [target.lat, target.lon]);
+
+    // Cập nhật marker nhẹ nhàng
+    if (!userMarker) {
+      userMarker = L.circleMarker(here, { radius: 8, color: '#4ade80' })
+        .addTo(map).bindPopup('Bạn đang ở đây');
+    } else {
+      userMarker.setLatLng(here);
+    }
+
+    // Chỉ cập nhật DOM khi thay đổi đủ lớn
+    if (lastDist === null || Math.abs(dist - lastDist) >= MIN_DELTA_DIST_M) {
+      raf(() => { $('#distance').textContent = fmtDist(dist); });
+      lastDist = dist;
+    }
+
+    lastPos = here;
+  }
+
+  function onPosition(pos) {
+    const now = performance.now();
+    if (document.visibilityState !== 'visible') return; // Tab ẩn → bỏ qua
+    if (now - lastTick < UPDATE_EVERY_MS) return;       // throttle
+    lastTick = now;
+
+    const here = [pos.coords.latitude, pos.coords.longitude];
+    applyHere(here);
+  }
+
+  // 1) Lấy nhanh vị trí cache để hiển thị tức thì
+  navigator.geolocation.getCurrentPosition(
+    p => onPosition(p),
+    () => {}, // ignore
+    { enableHighAccuracy: false, maximumAge: 300000, timeout: 2000 } // dùng cache đến 5'
+  );
+
+  // 2) Bắt đầu theo dõi với cấu hình "nhanh"
+  if (watchingId) navigator.geolocation.clearWatch(watchingId);
+  watchingId = navigator.geolocation.watchPosition(
+    onPosition,
+    err => { console.warn('watchPosition error', err); },
+    {
+      enableHighAccuracy: false, // nhanh & tiết kiệm pin; thường đủ cho app du lịch
+      maximumAge: 10000,         // cho phép cache 10s
+      timeout: 5000
+    }
+  );
+}
+
   }
 
   /* ===================== Reading + Highlight ===================== */
