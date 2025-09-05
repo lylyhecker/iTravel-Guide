@@ -491,8 +491,21 @@
   function startGeowatch(){
     if(!navigator.geolocation || watchingId!==null) return;
     watchingId=navigator.geolocation.watchPosition(pos=>{
-      const here=[pos.coords.latitude,pos.coords.longitude];
-      const d=haversine(here,currentPlace.coords);
+    const here = [pos.coords.latitude, pos.coords.longitude];
+
+    // GUARD: nếu chưa có currentPlace hoặc thiếu coords thì thoát sớm
+    if (!currentPlace?.coords || !Array.isArray(currentPlace.coords)) {
+      $('#distance').textContent = '—';
+      if (!userMarker) {
+        userMarker = L.circleMarker(here, {radius: 8, color: '#4ade80'})
+          .addTo(map).bindPopup('Bạn đang ở đây');
+      } else {
+        userMarker.setLatLng(here);
+      }
+      return;
+    }
+    const d = haversine(here, currentPlace.coords);
+    $('#distance').textContent = fmtDist(d);
       $('#distance').textContent=fmtDist(d);
       if(!userMarker){ userMarker=L.circleMarker(here,{radius:8,color:'#4ade80'}).addTo(map).bindPopup('Bạn đang ở đây'); }
       else userMarker.setLatLng(here);
@@ -636,22 +649,48 @@ Giải thích: ${it.explain||''}`;
   function buildQuizMessages(){
     const ctx = getPlaceContext();
     const avoid = buildAvoidList();
+    const lang = LangManager.get();
 
-    const placeHint = ctx.name ? `ĐỊA ĐIỂM: ${ctx.name} ${ctx.coords?ctx.coords:''}` : '';
-    const facts = ctx.intro ? `TÓM TẮT THUYẾT MINH:
-${ctx.intro}
-` : '';
-    const avoidBlk = avoid ? `KHÔNG ĐƯỢC LẶP LẠI các câu gần đây:
-${avoid}
-` : '';
+    const placeHint = (lang==='en'
+      ? (ctx.name ? `PLACE: ${ctx.name} ${ctx.coords?ctx.coords:''}` : '')
+      : (ctx.name ? `ĐỊA ĐIỂM: ${ctx.name} ${ctx.coords?ctx.coords:''}` : '')
+    );
 
-    const userPrompt = `
+    const facts = ctx.intro
+      ? (lang==='en' ? `SUMMARY:\n${ctx.intro}\n` : `TÓM TẮT THUYẾT MINH:\n${ctx.intro}\n`)
+      : '';
+
+    const avoidBlk = avoid
+      ? (lang==='en'
+          ? `DO NOT REPEAT recently shown questions:\n${avoid}\n`
+          : `KHÔNG ĐƯỢC LẶP LẠI các câu gần đây:\n${avoid}\n`
+        )
+      : '';
+
+    const userPrompt = (lang === 'en' ? `
+${placeHint}
+${facts}
+
+REQUIREMENTS:
+- Create ONE NEW MULTIPLE-CHOICE QUESTION directly related to the place above (history/architecture/culture...).
+- The content must be ACCURATE, concise, in ENGLISH, not political/sensitive.
+- Do NOT repeat or paraphrase recent questions.
+${avoidBlk}
+
+OUTPUT FORMAT (EXACTLY):
+[Clear question, 1–2 lines]
+A. [Choice A]
+B. [Choice B]
+C. [Choice C]
+Correct answer: [A/B/C]
+Explanation: [Short, correct explanation]
+` : `
 ${placeHint}
 ${facts}
 
 YÊU CẦU:
 - Tạo 01 câu hỏi TRẮC NGHIỆM MỚI, LIÊN QUAN TRỰC TIẾP tới địa điểm trên (lịch sử/kiến trúc/văn hoá...).
-- Nội dung CHÍNH XÁC, ngắn gọn, tiếng Việt, không chính trị/nhạy cảm.
+- Nội dung CHÍNH XÁC, ngắn gọn, bằng TIẾNG VIỆT, không chính trị/nhạy cảm.
 - KHÔNG trùng/paraphrase các câu đã xuất gần đây.
 ${avoidBlk}
 
@@ -662,10 +701,14 @@ B. [Lựa chọn B]
 C. [Lựa chọn C]
 Đáp án đúng: [A/B/C]
 Giải thích: [Giải thích ngắn gọn, chính xác]
-`.trim();
+`).trim();
 
     return [
-      { role:'system', content:'Bạn là trợ lý tạo quiz cho du khách ở Huế. Chỉ trả về đúng định dạng yêu cầu. Không thêm thừa.' },
+      { role:'system', content:(lang==='en'
+          ? 'You are a quiz assistant for tourists in Hue. Respond ONLY in English following the exact format.'
+          : 'Bạn là trợ lý tạo quiz cho du khách ở Huế. Chỉ trả về đúng định dạng yêu cầu. Không thêm thừa.'
+        )
+      },
       { role:'user', content: userPrompt }
     ];
   }
@@ -674,8 +717,14 @@ Giải thích: [Giải thích ngắn gọn, chính xác]
     if(!output) return null;
     const lines = output.split('\n').map(l=>l.trim()).filter(Boolean);
     const options = lines.filter(l => /^[ABC][.:、]/i.test(l));
-    const correctLine = lines.find(l => l.toLowerCase().startsWith('đáp án đúng'));
-    const explainLine = lines.find(l => l.toLowerCase().startsWith('giải thích'));
+    const correctLine = lines.find(l =>
+      l.toLowerCase().startsWith('đáp án đúng') ||
+      l.toLowerCase().startsWith('correct answer')
+    );
+    const explainLine = lines.find(l =>
+      l.toLowerCase().startsWith('giải thích') ||
+      l.toLowerCase().startsWith('explanation')
+    );
     const question = lines.find(l =>
       !/^[ABC][.:、]/i.test(l) &&
       !l.toLowerCase().startsWith('đáp án đúng') &&
@@ -790,7 +839,10 @@ Giải thích: [Giải thích ngắn gọn, chính xác]
     try { if(!auth.currentUser) await auth.signInAnonymously(); } catch(e){}
 
     await loadPoints();
-    await loadPlaces(); initMap(); rebuildMarkers(); await renderPlace(); startGeowatch();
+    await loadPlaces();
+    initMap();          
+    await renderPlace();
+    startGeowatch();
 
     document.getElementById('placeSelect').addEventListener('change', e=> selectPlace(e.target.value));
     document.getElementById('centerBtn').addEventListener('click', ()=> map && currentPlace?.coords && map.setView(currentPlace.coords,17));
