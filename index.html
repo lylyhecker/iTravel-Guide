@@ -489,133 +489,76 @@
 
 
   function startGeowatch(){
-    // === Utils nhanh ===
-const R = 6371000; // bán kính Trái Đất (m)
-const toRad = d => d * Math.PI / 180;
+  if (!navigator.geolocation || watchingId !== null) return;
 
-// Equirectangular: đủ chính xác < ~50 km, nhanh hơn Haversine
-function fastDistanceMeters(a, b) {
-  const [lat1, lon1] = a, [lat2, lon2] = b;
-  const φm = toRad((lat1 + lat2) / 2);
-  const x = toRad(lon2 - lon1) * Math.cos(φm);
-  const y = toRad(lat2 - lat1);
-  return Math.sqrt(x*x + y*y) * R;
-}
-
-// Batch DOM update
-let rafPending = false;
-function raf(fn) {
-  if (rafPending) return;
-  rafPending = true;
-  requestAnimationFrame(() => { rafPending = false; fn(); });
-}
-
-function startGeowatch() {
-  // === Helpers cục bộ, tránh đụng tên global ===
+  // Helpers cục bộ
   const R = 6371000; // m
   const toRad = d => d * Math.PI / 180;
-  // equirectangular nhanh (đủ tốt <~50km)
-  const fastDistanceMeters = (a, b) => {
-    const [lat1, lon1] = a, [lat2, lon2] = b;
-    const φm = toRad((lat1 + lat2) / 2);
-    const x = toRad(lon2 - lon1) * Math.cos(φm);
-    const y = toRad(lat2 - lat1);
-    return Math.sqrt(x*x + y*y) * R;
+  // equirectangular nhanh
+  const fast = (a,b)=>{
+    const [lat1,lon1]=a,[lat2,lon2]=b;
+    const m = toRad((lat1+lat2)/2);
+    const x = toRad(lon2-lon1)*Math.cos(m);
+    const y = toRad(lat2-lat1);
+    return Math.sqrt(x*x+y*y)*R;
   };
-  const $get = sel => document.querySelector(sel);
-  const distEl = document.getElementById('distance') || $get('#distance');
+  const fmt = (d)=> (typeof fmtDist==='function')?fmtDist(d):(d>=1000?(d/1000).toFixed(2)+' km':Math.round(d)+' m');
 
-  // Fallback nếu thiếu fmtDist
-  const fmtDistSafe = (d) => {
-    if (typeof fmtDist === 'function') return fmtDist(d);
-    // fallback đơn giản
-    if (d >= 1000) return (d/1000).toFixed(2) + ' km';
-    return Math.round(d) + ' m';
-  };
+  let lastTick=0, lastPos=null, lastDist=null;
+  const UPDATE_EVERY_MS=600, MIN_MOVE_M=5, MIN_DELTA_DIST_M=1;
 
-  // Tránh update quá dày
-  const UPDATE_EVERY_MS = 600;
-  const MIN_MOVE_M = 5;
-  const MIN_DELTA_DIST_M = 1;
+  function applyHere(here){
+    // marker người dùng
+    if(!userMarker){
+      userMarker = L.circleMarker(here,{radius:8,color:'#4ade80'}).addTo(map).bindPopup('Bạn đang ở đây');
+    } else userMarker.setLatLng(here);
 
-  let lastTick = 0;
-  let lastPos = null;
-  let lastDist = null;
+    // thiếu currentPlace/coords → hiển thị gạch ngang
+    const coords = (currentPlace && Array.isArray(currentPlace.coords)) ? currentPlace.coords : null;
+    const distEl = document.getElementById('distance');
+    if(!coords){ if(distEl) distEl.textContent='—'; return; }
 
-  // Dọn watch cũ (nếu bạn có biến watchingId global)
-  try { if (typeof watchingId !== 'undefined' && watchingId) {
-    navigator.geolocation.clearWatch(watchingId);
-    watchingId = null;
-  }} catch {}
+    // bỏ nhiễu di chuyển nhỏ
+    if(lastPos && fast(here,lastPos) < MIN_MOVE_M) return;
 
-  function safeSetUserMarker(here) {
-    try {
-      if (!map) return;
-      if (!window.userMarker) {
-        window.userMarker = L.circleMarker(here, { radius: 8, color: '#4ade80' })
-          .addTo(map).bindPopup('Bạn đang ở đây');
-      } else {
-        window.userMarker.setLatLng(here);
-      }
-    } catch(e) { /* bỏ qua */ }
-  }
-
-  function applyHere(here) {
-    safeSetUserMarker(here);
-
-    // Guard: chưa có điểm hiện tại
-    const coords = (typeof currentPlace === 'object' && Array.isArray(currentPlace?.coords))
-      ? currentPlace.coords
-      : null;
-    if (!coords) {
-      if (distEl) distEl.textContent = '—';
-      return;
+    const d = fast(here, coords);
+    if(lastDist===null || Math.abs(d-lastDist) >= MIN_DELTA_DIST_M){
+      if(distEl) distEl.textContent = fmt(d);
+      lastDist = d;
     }
 
-    // Bỏ qua nhiễu di chuyển nhỏ
-    if (lastPos && fastDistanceMeters(here, lastPos) < MIN_MOVE_M) return;
-
-    const dist = fastDistanceMeters(here, coords);
-
-    // Chỉ cập nhật DOM khi khác đáng kể
-    if (lastDist === null || Math.abs(dist - lastDist) >= MIN_DELTA_DIST_M) {
-      if (distEl) distEl.textContent = fmtDistSafe(dist);
-      lastDist = dist;
+    // tự phát nếu ≤100m
+    const auto = document.getElementById('autoplay');
+    if(auto && auto.checked && d<=100 && !withinPlayed){
+      withinPlayed = true; aiRead();
     }
     lastPos = here;
   }
 
-  function onPosition(pos) {
-    const now = performance.now ? performance.now() : Date.now();
-    if (document.visibilityState && document.visibilityState !== 'visible') return;
+  function onPosition(pos){
+    const now = (performance && performance.now)? performance.now() : Date.now();
+    if (document.visibilityState && document.visibilityState!=='visible') return;
     if (now - lastTick < UPDATE_EVERY_MS) return;
     lastTick = now;
-
-    const here = [pos.coords.latitude, pos.coords.longitude];
-    applyHere(here);
+    applyHere([pos.coords.latitude, pos.coords.longitude]);
   }
 
-  // Lấy nhanh vị trí cache để hiển thị tức thì (không lỗi cũng không sao)
-  try {
-    navigator.geolocation.getCurrentPosition(
-      p => onPosition(p),
-      () => {},
-      { enableHighAccuracy: false, maximumAge: 300000, timeout: 2000 }
-    );
-  } catch {}
+  // vị trí cache để hiển thị tức thì
+  try{
+    navigator.geolocation.getCurrentPosition(onPosition, ()=>{}, {
+      enableHighAccuracy:false, maximumAge:300000, timeout:2000
+    });
+  }catch{}
 
-  // Bắt đầu watch
-  try {
-    window.watchingId = navigator.geolocation.watchPosition(
-      onPosition,
-      err => console.warn('watchPosition error', err),
-      { enableHighAccuracy: false, maximumAge: 10000, timeout: 5000 }
-    );
-  } catch(e) {
-    console.warn('startGeowatch failed:', e);
-  }
+  // bắt đầu theo dõi
+  watchingId = navigator.geolocation.watchPosition(
+    onPosition,
+    e=>console.warn('geo', e),
+    { enableHighAccuracy:false, maximumAge:10000, timeout:5000 }
+  );
 }
-  }
+
+
 
 
   /* ===================== Reading + Highlight ===================== */
