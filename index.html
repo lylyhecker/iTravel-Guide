@@ -423,23 +423,33 @@
     if(currentPlace) sel.value=currentPlace.id;
   }
   async function loadReadForCurrent() {
+    // GUARD: chưa có currentPlace thì xóa intro và thoát
+    if (!currentPlace) {
+      const introEl = document.getElementById('intro');
+      if (introEl) introEl.textContent = '';
+      return;
+    }
+
     currentReadText = '';
     const lang = LangManager.get();
-    const url = (lang === 'en' && currentPlace.read_url_en) 
-                  ? currentPlace.read_url_en 
-                  : currentPlace.read_url;
+
+    // Dùng optional chaining để không đụng null
+    const url = (lang === 'en' && currentPlace?.read_url_en)
+                  ? currentPlace.read_url_en
+                  : currentPlace?.read_url;
 
     if (url) {
       try {
-        const r = await fetch(url, {cache:'no-store'});
+        const r = await fetch(url, { cache: 'no-store' });
         currentReadText = await r.text();
-      } catch(e) {}
+      } catch (e) {}
     }
     if (!currentReadText) {
-      currentReadText = (lang === 'en' ? currentPlace.intro_en : currentPlace.intro) || '';
+      currentReadText = (lang === 'en' ? currentPlace?.intro_en : currentPlace?.intro) || '';
     }
     document.getElementById('intro').textContent = currentReadText;
   }
+
 
   function initMap(){
     map=L.map('map').setView([16.46974,107.57969],13);
@@ -464,13 +474,19 @@
     renderPlace();
   }
   async function renderPlace(){
+    if (!currentPlace) {  // GUARD
+      $('#placeTitle').textContent = '';
+      $('#intro').textContent = '';
+      return;
+    }
     const lang = LangManager.get();
     const title = (lang === 'en' && currentPlace?.name_en) ? currentPlace.name_en : (currentPlace?.name || '');
     $('#placeTitle').textContent = title;
     await loadReadForCurrent();
-    if(map&&currentPlace?.coords) map.setView(currentPlace.coords,16);
+    if (map && currentPlace?.coords) map.setView(currentPlace.coords, 16);
     placeMarkers[currentPlace.id]?.openPopup?.();
   }
+
 
   function startGeowatch(){
     if(!navigator.geolocation || watchingId!==null) return;
@@ -873,9 +889,8 @@ Giải thích: [Giải thích ngắn gọn, chính xác]
 </script>
 
 <script>
-// … cuối file, sau khi định nghĩa các hàm render …
-window.addEventListener('langchange', async (e)=>{
-  // Cập nhật tiêu đề & thuyết minh theo ngôn ngữ mới
+window.addEventListener('langchange', async ()=>{
+  if (!currentPlace) return;  // tránh chạy sớm khi chưa load xong places
   await renderPlace();
 });
 </script>
