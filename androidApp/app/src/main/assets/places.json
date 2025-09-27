@@ -1,0 +1,34 @@
+[
+  {
+    "id": "dai-noi-hue",
+    "name": "Đại Nội Huế",
+    "coords": [16.46974, 107.57969],
+    "intro": "Đại Nội Huế là quần thể cung điện và thành quách của triều Nguyễn.",
+    "intro_en": "The Imperial City of Hue is a complex of palaces and citadels of the Nguyen Dynasty.",
+    "read_url": "data/read/dai-noi-hue.txt",
+    "read_url_en": "data/read/dai-noi-hue.en.txt",
+    "quiz_url": "data/quiz/dai-noi-hue.json"
+  },
+  {
+    "id": "chua-thien-mu",
+    "name": "Chùa Thiên Mụ",
+    "coords": [16.4556, 107.5460],
+    "intro": "Chùa Thiên Mụ là ngôi chùa cổ nằm bên sông Hương, biểu tượng tâm linh của Huế.",
+    "intro_en": "Thien Mu Pagoda is an ancient pagoda located on the Perfume River, a spiritual symbol of Hue.",
+    "read_url": "data/read/thien-mu-hue.txt",
+    "read_url_en": "data/read/thien-mu-hue.en.txt",
+    "quiz_url": "data/quiz/thien-mu-hue.json"
+  },
+  {
+    "id": "lang-tu-duc",
+    "name": "Lăng Tự Đức",
+    "coords": [16.4305, 107.5672],
+    "intro": "Lăng Tự Đức là nơi yên nghỉ của vua Tự Đức, nổi tiếng với phong cảnh thơ mộng.",
+    "intro_en": "Tu Duc Tomb is the resting place of King Tu Duc, famous for its poetic scenery.",
+    "read_url": "data/read/lang-tu-duc.txt",
+    "read_url_en": "data/read/lang-tu-duc.en.txt",
+    "quiz_url": "data/quiz/lang-tu-duc.json"
+  }
+]
+
+

@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">iTravel Guide</string>
+    <string name="map_content_description">Bản đồ iTravel Guide</string>
+    <string name="search_hint">Tìm kiếm địa danh</string>
+    <string name="see_details">Xem chi tiết</string>
+</resources>
