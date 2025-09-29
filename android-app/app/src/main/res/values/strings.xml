@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">iTravel Guide</string>
+    <string name="language_toggle">Chuyển ngôn ngữ</string>
+    <string name="view_details">Xem chi tiết</string>
+    <string name="start_quiz">Làm bài quiz</string>
+    <string name="close">Đóng</string>
+    <string name="quiz_placeholder">Tính năng quiz sẽ mở trong phiên bản tiếp theo.</string>
+    <string name="read_more">Đọc thêm</string>
+    <string name="map_description">Bản đồ du lịch thành phố Huế</string>
+</resources>
