@@ -7,4 +7,10 @@
     <string name="quiz_placeholder">Tính năng quiz sẽ mở trong phiên bản tiếp theo.</string>
     <string name="read_more">Đọc thêm</string>
     <string name="map_description">Bản đồ du lịch thành phố Huế</string>
+    <string name="place_info_tab">Giới thiệu</string>
+    <string name="place_novel_tab">Tiểu thuyết</string>
+    <string name="generate_questions">Tạo câu hỏi</string>
+    <string name="questions_count">Đã tạo %1$d câu hỏi</string>
+    <string name="question_number">Câu hỏi %1$d</string>
+    <string name="novel_not_available">Không có tiểu thuyết để hiển thị.</string>
 </resources>

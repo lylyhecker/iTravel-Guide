@@ -7,7 +7,11 @@
     "intro_en": "The Imperial City of Hue is a complex of palaces and citadels of the Nguyen Dynasty.",
     "read_url": "read/dai-noi-hue.txt",
     "read_url_en": "read/dai-noi-hue.en.txt",
-    "quiz_url": "quiz/dai-noi-hue.json"
+    "quiz_url": "quiz/dai-noi-hue.json",
+    "novel_url": "novels/dai-noi-hue.txt",
+    "novel_url_en": "novels/dai-noi-hue.en.txt",
+    "novel_title": "Trầm mặc Hoàng thành",
+    "novel_title_en": "Silent Citadel"
   },
   {
     "id": "chua-thien-mu",
@@ -17,7 +21,11 @@
     "intro_en": "Thien Mu Pagoda is an ancient pagoda located on the Perfume River, a spiritual symbol of Hue.",
     "read_url": "read/thien-mu-hue.txt",
     "read_url_en": "read/thien-mu-hue.en.txt",
-    "quiz_url": "quiz/thien-mu-hue.json"
+    "quiz_url": "quiz/thien-mu-hue.json",
+    "novel_url": "novels/thien-mu-hue.txt",
+    "novel_url_en": "novels/thien-mu-hue.en.txt",
+    "novel_title": "Chuông gió bên sông Hương",
+    "novel_title_en": "Wind Chimes on the Perfume River"
   },
   {
     "id": "lang-tu-duc",
@@ -27,7 +35,11 @@
     "intro_en": "Tu Duc Tomb is the resting place of King Tu Duc, famous for its poetic scenery.",
     "read_url": "read/lang-tu-duc.txt",
     "read_url_en": "read/lang-tu-duc.en.txt",
-    "quiz_url": "quiz/lang-tu-duc.json"
+    "quiz_url": "quiz/lang-tu-duc.json",
+    "novel_url": "novels/lang-tu-duc.txt",
+    "novel_url_en": "novels/lang-tu-duc.en.txt",
+    "novel_title": "Giấc mộng nơi lăng tẩm",
+    "novel_title_en": "Dreams of the Royal Tomb"
   }
 ]
 

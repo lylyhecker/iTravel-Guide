@@ -19,6 +19,14 @@ data class Place(
     val readUrlEn: String,
     @SerialName("quiz_url")
     val quizUrl: String,
+    @SerialName("novel_url")
+    val novelUrl: String? = null,
+    @SerialName("novel_url_en")
+    val novelUrlEn: String? = null,
+    @SerialName("novel_title")
+    val novelTitle: String? = null,
+    @SerialName("novel_title_en")
+    val novelTitleEn: String? = null,
 ) {
     val latitude: Double get() = coordinates.getOrNull(0) ?: 0.0
     val longitude: Double get() = coordinates.getOrNull(1) ?: 0.0
@@ -29,4 +37,10 @@ data class Place(
     fun intro(isVietnamese: Boolean): String = if (isVietnamese) intro else introEn
 
     fun readAssetPath(isVietnamese: Boolean) = if (isVietnamese) readUrl else readUrlEn
+
+    fun novelAssetPath(isVietnamese: Boolean): String? =
+        if (isVietnamese) novelUrl else novelUrlEn
+
+    fun novelDisplayTitle(isVietnamese: Boolean): String? =
+        if (isVietnamese) novelTitle else novelTitleEn
 }

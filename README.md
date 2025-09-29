@@ -12,6 +12,8 @@ The Android client is built with **Kotlin**, **Jetpack Compose**, and **Google M
 ### Key features
 - Google Maps powered home screen with markers for all points of interest.
 - Tap a marker to recenter the camera and open a detail sheet with bilingual descriptions.
+- Switch to the new **Novel** tab inside the detail sheet to read short-form fiction inspired by each landmark.
+- Use the **Generate questions** button to synthesize fill-in-the-blank prompts from the story using the built-in offline AI heuristic.
 - Quick language toggle (Vietnamese ↔ English) from the summary card.
 - Graceful fallbacks when quiz functionality or long-form content is unavailable.
 
@@ -35,6 +37,7 @@ java/com/itravelguide
 Assets live under `android-app/app/src/main/assets/` and include:
 - `places.json` (metadata for each destination)
 - `read/` (Vietnamese & English descriptions)
+- `novels/` (bilingual short stories tailored for each point of interest)
 - `quiz/` (future quiz content stubs)
 
 ## License
