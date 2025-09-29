@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">iTravel Guide</string>
+    <string name="language_toggle">Change language</string>
+    <string name="view_details">View details</string>
+    <string name="start_quiz">Take quiz</string>
+    <string name="close">Close</string>
+    <string name="quiz_placeholder">Quiz mode will be enabled in a future version.</string>
+    <string name="read_more">Read more</string>
+    <string name="map_description">Hue City travel map</string>
+    <string name="place_info_tab">Overview</string>
+    <string name="place_novel_tab">Novel</string>
+    <string name="generate_questions">Generate questions</string>
+    <string name="questions_count">Generated %1$d questions</string>
+    <string name="question_number">Question %1$d</string>
+    <string name="novel_not_available">No novel is available.</string>
+</resources>

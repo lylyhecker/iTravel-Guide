@@ -1,0 +1,11 @@
+<resources>
+    <color name="md_theme_primary">#005AC1</color>
+    <color name="md_theme_onPrimary">#FFFFFF</color>
+    <color name="md_theme_secondary">#4E5D73</color>
+    <color name="md_theme_background">#FDFBFF</color>
+    <color name="md_theme_onBackground">#1B1B1F</color>
+    <color name="md_theme_surface">#FDFBFF</color>
+    <color name="md_theme_onSurface">#1B1B1F</color>
+    <color name="md_theme_surfaceVariant">#DFE2EB</color>
+    <color name="md_theme_onSurfaceVariant">#43474E</color>
+</resources>

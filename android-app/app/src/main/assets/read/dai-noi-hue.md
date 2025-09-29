@@ -1,0 +1,3 @@
+Đại Nội Huế là quần thể di tích thuộc Kinh thành Huế, nơi ở và làm việc của triều Nguyễn. 
+Nổi bật với Ngọ Môn, Điện Thái Hòa và hệ thống lăng tẩm. 
+UNESCO công nhận Quần thể di tích Cố đô Huế năm 1993.

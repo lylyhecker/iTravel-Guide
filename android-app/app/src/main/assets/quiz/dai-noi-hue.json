@@ -1,0 +1,12 @@
+[
+  {
+    "q": "Triều đại nào xây dựng Đại Nội Huế?",
+    "choices": ["Lý", "Nguyễn", "Trần"],
+    "answer": 1
+  },
+  {
+    "q": "UNESCO công nhận Quần thể Cố đô Huế năm nào?",
+    "choices": ["1986", "1993", "2010"],
+    "answer": 1
+  }
+]
