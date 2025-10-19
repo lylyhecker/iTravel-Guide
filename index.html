@@ -590,134 +590,203 @@
 
   function stopRead(){ try{ speechSynthesis.cancel(); }catch{} }
 
-  /* ===================== Quiz AI: tránh lặp + bám địa điểm ===================== */
+ /* ===================== Quiz AI: tránh lặp + bám địa điểm (FULL, DROP-IN) ===================== */
 
-  // DÙNG PROXY — KHÔNG CÒN KEY TRÊN CLIENT
-  window.AI_PROXY_URL = window.AI_PROXY_URL || 'https://itravel-guide.baovagiao.workers.dev/gemini';
-  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+/** 1) Endpoint cấu hình **/
+window.AI_PROXY_URL  = window.AI_PROXY_URL  || 'https://itravel-guide.baovagiao.workers.dev/gemini';
+window.QUIZ_API_URL  = window.QUIZ_API_URL  || 'https://itravel-guide.baovagiao.workers.dev/gemini/questions';
 
-  async function callGemini(messages) {
-    const prompt = messages.map(m => `${m.role}: ${m.content}`).join("\n");
-    const models = ["gemini-1.5-flash","gemini-1.5-flash-8b","gemini-1.5-pro"];
-    const retriable = new Set([429,500,502,503,504]);
-    const maxRetries = 4;
+/** 2) Helpers **/
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-    for (let mi = 0; mi < models.length; mi++){
-      const model = models[mi];
-      for (let attempt = 0; attempt < maxRetries; attempt++){
-        try {
-          const endpoint = window.AI_PROXY_URL;
-          const res = await fetch(endpoint, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [{ role: "user", parts: [{ text: prompt }] }],
-              generationConfig: { temperature:0.7, topK:40, topP:0.95, maxOutputTokens:1024 }
-            })
-          });
-          if (!res.ok){
-            let serverMsg=""; try{ const d=await res.json(); serverMsg=d?.error?.message?`: ${d.error.message}`:""; }catch{}
-            if (retriable.has(res.status) && attempt < maxRetries-1){
-              const delay=Math.pow(2,attempt)*200 + Math.floor(Math.random()*120);
-              await sleep(delay); continue;
-            }
-            if (mi < models.length-1) break; // thử model tiếp theo
-            throw new Error(`Lỗi API (${res.status})${serverMsg}`);
+/** 3) Gọi Gemini qua Worker: GIỮ role + XOAY model thật sự **/
+async function callGemini(messages) {
+  // Rút systemInstruction & build contents chuẩn
+  let systemInstruction = null;
+  const contentTurns = [];
+  for (const m of messages) {
+    if (m.role === 'system') {
+      systemInstruction = String(m.content || '');
+    } else {
+      // role "assistant" -> "model", còn lại "user"
+      contentTurns.push({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: String(m.content||'') }] });
+    }
+  }
+  if (contentTurns.length === 0) {
+    contentTurns.push({ role: 'user', parts: [{ text: '' }] });
+  }
+
+  const models = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"];
+  const retriable = new Set([429,500,502,503,504]);
+  const maxRetries = 4;
+
+  for (let mi = 0; mi < models.length; mi++) {
+    const model = models[mi];
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const res = await fetch(window.AI_PROXY_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model,
+            contents: contentTurns,
+            ...(systemInstruction ? {
+              systemInstruction: { role: "system", parts: [{ text: systemInstruction }] }
+            } : {}),
+            generationConfig: { temperature: 0.7, topK: 40, topP: 0.95, maxOutputTokens: 1024 }
+          })
+        });
+
+        const raw = await res.text();
+        let data = {};
+        try { data = JSON.parse(raw); } catch {}
+
+        if (!res.ok) {
+          const serverMsg = data?.error?.message ? `: ${data.error.message}` : '';
+          if (retriable.has(res.status) && attempt < maxRetries - 1) {
+            const delay = Math.pow(2, attempt) * 200 + Math.floor(Math.random() * 120);
+            await sleep(delay);
+            continue;
           }
-          const data = await res.json();
-          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-          if (!text.trim()) throw new Error("Phản hồi trống.");
-          return text;
-        } catch (err){
-          if (attempt < maxRetries-1){
-            const delay=Math.pow(2,attempt)*200 + Math.floor(Math.random()*120);
-            await sleep(delay); continue;
-          }
-          if (mi < models.length-1) break;
+          if (mi < models.length - 1) break; // thử model khác
+          throw new Error(`Lỗi API (${res.status})${serverMsg}${(!serverMsg && raw) ? ` | raw: ${raw.slice(0,200)}` : ''}`);
         }
+
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        if (!text.trim()) {
+          // Có thể bị blockReason
+          const reason = data?.promptFeedback?.blockReason;
+          if (attempt < maxRetries - 1) {
+            const delay = Math.pow(2, attempt) * 200 + Math.floor(Math.random() * 120);
+            await sleep(delay);
+            continue;
+          }
+          if (mi < models.length - 1) break;
+          throw new Error(`Phản hồi trống${reason ? ` (blockReason=${reason})` : ''}.`);
+        }
+        return text;
+      } catch (err) {
+        if (attempt < maxRetries - 1) {
+          const delay = Math.pow(2, attempt) * 200 + Math.floor(Math.random() * 120);
+          await sleep(delay);
+          continue;
+        }
+        if (mi < models.length - 1) break;
       }
     }
-    return "Hiện mô hình đang quá tải. Hãy thử lại sau ít giây.";
   }
+  return "Hiện mô hình đang quá tải. Hãy thử lại sau ít giây.";
+}
 
-  async function callAI(messages){ return await callGemini(messages); }
+/** 4) (Tùy chọn) Gọi route chuyên tạo quiz ở Worker (đã có fallback/safety) **/
+async function generateQuizViaWorker(text, avoidBlk = '', lang = (window.LangManager?.get?.() || 'vi')) {
+  try {
+    const res = await fetch(window.QUIZ_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, avoidBlk, lang })
+    });
+    const data = await res.json();
+    if (data?.question) return data.question;
+    console.warn('Quiz worker info:', data); // sẽ thấy blockReason/promptFeedback nếu có
+    return '';
+  } catch {
+    return '';
+  }
+}
 
-  let quizSeed=null, seedLoadedFor=null;
-  async function loadQuizSeedIfAny(){
-    if(!currentPlace) return;
-    if(seedLoadedFor === currentPlace.id) return;
-    seedLoadedFor = currentPlace.id;
-    quizSeed=null;
-    if(currentPlace.quiz_url){
-      try{ const r=await fetch(currentPlace.quiz_url,{cache:'no-store'}); if(r.ok) quizSeed=await r.json(); }catch{}
-    }
+/** 5) Seed quiz có sẵn **/
+let quizSeed = null, seedLoadedFor = null;
+async function loadQuizSeedIfAny(){
+  if (!currentPlace) return;
+  if (seedLoadedFor === currentPlace.id) return;
+  seedLoadedFor = currentPlace.id;
+  quizSeed = null;
+  if (currentPlace.quiz_url){
+    try {
+      const r = await fetch(currentPlace.quiz_url, { cache: 'no-store' });
+      if (r.ok) quizSeed = await r.json();
+    } catch {}
   }
+}
 
-  const QUIZ_MEMORY = new Map(); // { placeId => Set(normalizedQuestion) }
-  function normalizeQ(q){ return String(q||'').toLowerCase().replace(/\s+/g,' ').replace(/[“”"'.?!:,;()\[\]]/g,'').trim(); }
-  function rememberQuestion(placeId, q){
-    const key = placeId || '_global';
-    if(!QUIZ_MEMORY.has(key)) QUIZ_MEMORY.set(key, new Set());
-    const s = QUIZ_MEMORY.get(key);
-    s.add(normalizeQ(q));
-    if(s.size > 30){ const first = s.values().next().value; s.delete(first); }
-  }
-  function hasSeenQuestion(placeId, q){
-    const key = placeId || '_global';
-    const s = QUIZ_MEMORY.get(key);
-    if(!s) return false;
-    return s.has(normalizeQ(q));
-  }
+/** 6) Tránh lặp câu — bộ nhớ ngắn **/
+const QUIZ_MEMORY = new Map(); // { placeId => Set(normalizedQuestion) }
+function normalizeQ(q){
+  return String(q||'').toLowerCase()
+    .replace(/\s+/g,' ')
+    .replace(/[“”"'.?!:,;()\[\]]/g,'')
+    .trim();
+}
+function rememberQuestion(placeId, q){
+  const key = placeId || '_global';
+  if (!QUIZ_MEMORY.has(key)) QUIZ_MEMORY.set(key, new Set());
+  const s = QUIZ_MEMORY.get(key);
+  s.add(normalizeQ(q));
+  if (s.size > 30){ const first = s.values().next().value; s.delete(first); } // cap 30
+}
+function hasSeenQuestion(placeId, q){
+  const key = placeId || '_global';
+  const s = QUIZ_MEMORY.get(key);
+  if (!s) return false;
+  return s.has(normalizeQ(q));
+}
 
-  function getPlaceContext(){
-    const name = currentPlace?.name || '';
-    const intro = (currentReadText || '').replace(/\s+/g,' ').trim().slice(0, 1000);
-    const coords = Array.isArray(currentPlace?.coords) ? `(${currentPlace.coords[0]}, ${currentPlace.coords[1]})` : '';
-    return { name, intro, coords };
-  }
-  function buildAvoidList(){
-    const seen = QUIZ_MEMORY.get(currentPlace?.id || '_global');
-    if(!seen || !seen.size) return '';
-    return Array.from(seen).slice(-6).map(q=>`- ${q}`).join('\n');
-  }
-  function buildSeedSnippet(){
-    if(!Array.isArray(quizSeed) || !quizSeed.length) return '';
-    const sample = quizSeed.slice(0,2).map((it, idx)=>{
-      const letters=['A','B','C','D'];
-      const lines=(it.choices||[]).slice(0,3).map((c,i)=> `${letters[i]}. ${c}`).join('\n');
-      const ans = typeof it.answer==='number' ? letters[it.answer] : 'A';
-      return `Ví dụ ${idx+1}:
+/** 7) Context địa điểm & seed **/
+function getPlaceContext(){
+  const name = currentPlace?.name || '';
+  const intro = (currentReadText || '').replace(/\s+/g,' ').trim().slice(0, 1000);
+  const coords = Array.isArray(currentPlace?.coords) ? `(${currentPlace.coords[0]}, ${currentPlace.coords[1]})` : '';
+  return { name, intro, coords };
+}
+function buildAvoidList(){
+  const seen = QUIZ_MEMORY.get(currentPlace?.id || '_global');
+  if (!seen || !seen.size) return '';
+  return Array.from(seen).slice(-6).map(q=>`- ${q}`).join('\n');
+}
+function buildSeedSnippet(){
+  if (!Array.isArray(quizSeed) || !quizSeed.length) return '';
+  const sample = quizSeed.slice(0,2).map((it, idx)=>{
+    const letters = ['A','B','C','D'];
+    const lines = (it.choices||[]).slice(0,3).map((c,i)=> `${letters[i]}. ${c}`).join('\n');
+    const ans = typeof it.answer==='number' ? letters[it.answer] : 'A';
+    return `Ví dụ ${idx+1}:
 ${it.q}
 ${lines}
 Đáp án đúng: ${ans}
 Giải thích: ${it.explain||''}`;
-    }).join('\n\n');
-    return sample;
-  }
-  function buildQuizMessages(){
-    const ctx = getPlaceContext();
-    const avoid = buildAvoidList();
-    const lang = LangManager.get();
+  }).join('\n\n');
+  return sample;
+}
 
-    const placeHint = (lang==='en'
-      ? (ctx.name ? `PLACE: ${ctx.name} ${ctx.coords?ctx.coords:''}` : '')
-      : (ctx.name ? `ĐỊA ĐIỂM: ${ctx.name} ${ctx.coords?ctx.coords:''}` : '')
-    );
+/** 8) Build prompt messages **/
+function buildQuizMessages(){
+  const ctx = getPlaceContext();
+  const avoid = buildAvoidList();
+  const lang = window.LangManager?.get?.() || 'vi';
 
-    const facts = ctx.intro
-      ? (lang==='en' ? `SUMMARY:\n${ctx.intro}\n` : `TÓM TẮT THUYẾT MINH:\n${ctx.intro}\n`)
-      : '';
+  const placeHint = (lang==='en'
+    ? (ctx.name ? `PLACE: ${ctx.name} ${ctx.coords?ctx.coords:''}` : '')
+    : (ctx.name ? `ĐỊA ĐIỂM: ${ctx.name} ${ctx.coords?ctx.coords:''}` : '')
+  );
 
-    const avoidBlk = avoid
-      ? (lang==='en'
-          ? `DO NOT REPEAT recently shown questions:\n${avoid}\n`
-          : `KHÔNG ĐƯỢC LẶP LẠI các câu gần đây:\n${avoid}\n`
-        )
-      : '';
+  const facts = ctx.intro
+    ? (lang==='en' ? `SUMMARY:\n${ctx.intro}\n` : `TÓM TẮT THUYẾT MINH:\n${ctx.intro}\n`)
+    : '';
 
-    const userPrompt = (lang === 'en' ? `
+  const avoidBlk = avoid
+    ? (lang==='en'
+        ? `DO NOT REPEAT recently shown questions:\n${avoid}\n`
+        : `KHÔNG ĐƯỢC LẶP LẠI các câu gần đây:\n${avoid}\n`
+      )
+    : '';
+
+  const seed = buildSeedSnippet();
+
+  const userPrompt = (lang === 'en' ? `
 ${placeHint}
 ${facts}
+${seed?`\nEXAMPLES (for style reference only):\n${seed}\n`:''}
 
 REQUIREMENTS:
 - Create ONE NEW MULTIPLE-CHOICE QUESTION directly related to the place above (history/architecture/culture...).
@@ -735,6 +804,7 @@ Explanation: [Short, correct explanation]
 ` : `
 ${placeHint}
 ${facts}
+${seed?`\nCÁC VÍ DỤ (chỉ tham khảo phong cách):\n${seed}\n`:''}
 
 YÊU CẦU:
 - Tạo 01 câu hỏi TRẮC NGHIỆM MỚI, LIÊN QUAN TRỰC TIẾP tới địa điểm trên (lịch sử/kiến trúc/văn hoá...).
@@ -751,131 +821,189 @@ C. [Lựa chọn C]
 Giải thích: [Giải thích ngắn gọn, chính xác]
 `).trim();
 
-    return [
-      { role:'system', content:(lang==='en'
-          ? 'You are a quiz assistant for tourists in Hue. Respond ONLY in English following the exact format.'
-          : 'Bạn là trợ lý tạo quiz cho du khách ở Huế. Chỉ trả về đúng định dạng yêu cầu. Không thêm thừa.'
-        )
-      },
-      { role:'user', content: userPrompt }
-    ];
-  }
+  return [
+    { role:'system', content:(lang==='en'
+        ? 'You are a quiz assistant for tourists in Hue. Respond ONLY in English following the exact format.'
+        : 'Bạn là trợ lý tạo quiz cho du khách ở Huế. Chỉ trả về đúng định dạng yêu cầu. Không thêm thừa.'
+      )
+    },
+    { role:'user', content: userPrompt }
+  ];
+}
 
-  function parseAIQuestion(output){
-    if(!output) return null;
-    const lines = output.split('\n').map(l=>l.trim()).filter(Boolean);
-    const options = lines.filter(l => /^[ABC][.:、]/i.test(l));
-    const correctLine = lines.find(l =>
-      l.toLowerCase().startsWith('đáp án đúng') ||
-      l.toLowerCase().startsWith('correct answer')
-    );
-    const explainLine = lines.find(l =>
-      l.toLowerCase().startsWith('giải thích') ||
-      l.toLowerCase().startsWith('explanation')
-    );
-    const question = lines.find(l =>
-      !/^[ABC][.:、]/i.test(l) &&
-      !l.toLowerCase().startsWith('đáp án đúng') &&
-      !l.toLowerCase().startsWith('giải thích')
-    );
-    if(!question || options.length < 3 || !correctLine || !explainLine) return null;
-    const correctAnswer = (correctLine.split(':')[1] || '').trim().charAt(0).toUpperCase();
-    const explanation = (explainLine.split(':')[1] || '').trim();
-    return { question, options, correctAnswer, explanation };
-  }
+/** 9) Parser “dễ tính” **/
+function parseAIQuestion(output){
+  if(!output) return null;
 
-  let qIdx=0, qScore=0, qGained=0;
-  function perPoints(){ return 5; }
-  function setProg(){ const p=document.getElementById('qprog'); if(!p) return; const pct=Math.round((qIdx/10)*100); p.style.width=pct+'%'; }
+  const lines = output
+    .split('\n')
+    .map(l => l.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
 
-  async function renderQuiz(){
-    if(!currentPlace){ alert(window.LangManager.t('selectAPlace','Hãy chọn địa điểm.')); return; }
-    await loadQuizSeedIfAny();
+  const isOpt = (s) => /^[\-\*]?\s*[ABCabc][\.\:\)\-、]\s+/.test(s);
+  const isAns = (s) =>
+    /^đáp\s*án(\s*đúng)?\s*:/i.test(s) || /^correct\s*answer\s*:/i.test(s);
+  const isExplain = (s) =>
+    /^giải\s*thích\s*:/i.test(s) || /^explanation\s*:/i.test(s);
 
-    const box=document.getElementById('quizBox'); box.classList.remove('hidden');
-    const wrap=document.getElementById('qwrap'); setProg();
-    wrap.innerHTML = `<div class="text-sm text-[color:var(--muted)]">${window.LangManager.t('creatingQuestionFor','Đang tạo câu hỏi cho')} <b>${currentPlace.name}</b>…</div>`;
-
-    const MAX_TRY=3;
-    let parsed=null;
-    for(let attempt=1; attempt<=MAX_TRY; attempt++){
-      const messages = buildQuizMessages();
-      const output = await callAI(messages).catch(()=> '');
-      parsed = parseAIQuestion(output);
-      if(parsed && !hasSeenQuestion(currentPlace.id, parsed.question)) break;
-      if(attempt===MAX_TRY && parsed) break; // dùng tạm
+  let question = null;
+  for (const l of lines) {
+    if (!isOpt(l) && !isAns(l) && !isExplain(l)) {
+      question = l;
+      break;
     }
-    if(!parsed){ wrap.innerHTML=`<div class="text-red-400">${window.LangManager.t('createQuestionFailure','Không tạo được câu phù hợp. Thử lại.')}</div>`; return; }
+  }
+  if (!question) return null;
 
-    rememberQuestion(currentPlace.id, parsed.question);
+  const options = lines.filter(isOpt).slice(0,3);
+  if (options.length < 3) return null;
 
-    const {question, options, correctAnswer, explanation} = parsed;
-    wrap.innerHTML = `
-      <div class="flex items-center justify-between">
-        <div class="quiz-stats">
-          <span class="quiz-badge">${window.LangManager.t('placeBadgeLabel','Địa điểm:')} ${currentPlace.name}</span>
-          <span class="quiz-badge">${window.LangManager.t('questionCount','Câu')} ${qIdx+1}/10</span>
-          <span>${window.LangManager.t('correctNow','Đúng hiện tại:')} <b>${qScore}</b></span>
-        </div>
-        <div class="quiz-actions">
-          <button id="regenBtn" class="btn secondary"><img src="assets/play.svg" class="icon themable" alt=""> ${window.LangManager.t('changeQuestion','Đổi câu khác')}</button>
-          <span class="quiz-badge">${window.LangManager.t('ptsPerQ','+')}${perPoints()} ${window.LangManager.t('ptsPerQTail','đ/câu')}</span>
-        </div>
-      </div>
-      <div class="mt-3 text-lg font-medium">${question}</div>
-      <div id="choices" class="mt-3 grid gap-2"></div>
-      <div id="explain" class="mt-3 hidden quiz-explain"></div>
-      <div class="mt-3 quiz-actions">
-        <button id="nextBtn" class="btn" disabled><img src="assets/play.svg" class="icon themable" alt=""> ${window.LangManager.t('nextQuestion','Câu tiếp')}</button>
-      </div>
-    `;
+  const correctLine = lines.find(isAns);
+  const explainLine = lines.find(isExplain);
+  if (!correctLine || !explainLine) return null;
 
-    const chWrap=document.getElementById('choices');
-    const expEl=document.getElementById('explain');
-    const next=document.getElementById('nextBtn');
-    const regen=document.getElementById('regenBtn');
+  const ansMatch = correctLine.split(':').slice(1).join(':').trim().match(/[ABCabc]/);
+  const correctAnswer = ansMatch ? ansMatch[0].toUpperCase() : null;
+  if (!correctAnswer) return null;
 
-    let locked=false;
-    options.forEach(opt=>{
-      const div=document.createElement('label'); div.className='quiz-choice';
-      div.innerHTML = `<input type="radio" name="opt" class="mt-1" style="accent-color:var(--primary)"> <div>${opt}</div>`;
-      div.addEventListener('click', ()=>{
-        if(locked) return; locked=true; next.disabled=false;
-        const chosenLetter = opt.charAt(0).toUpperCase();
-        const ok = (chosenLetter === correctAnswer);
-        div.classList.add(ok?'correct':'wrong');
-        if(!ok){
-          [...chWrap.children].forEach(el=>{ if(el.textContent.trim().startsWith(correctAnswer)) el.classList.add('correct'); });
-        }
-        expEl.textContent = explanation || '';
-        expEl.classList.remove('hidden');
-        if(ok){ qScore += 1; qGained += perPoints(); }
-      });
-      chWrap.appendChild(div);
-    });
+  const explanation = explainLine.split(':').slice(1).join(':').trim();
 
-    regen.addEventListener('click', ()=>{ renderQuiz(); });
+  return { question, options, correctAnswer, explanation };
+}
 
-    next.addEventListener('click', async()=>{
-      qIdx++; setProg();
-      if(qIdx>=10){
-        wrap.innerHTML=`
-          <div class="text-xl font-semibold">${window.LangManager.t('doneTitle','Hoàn thành!')}</div>
-          <div class="mt-2">${window.LangManager.t('youCorrect','Bạn đúng')} <b>${qScore}</b>/10 ${window.LangManager.t('youCorrectTail','câu.')}</div>
-          <div class="mt-2">${window.LangManager.t('youGained','Điểm thưởng vừa nhận:')} <b>+${qGained}</b></div>
-          <div class="mt-3 quiz-actions">
-            <a href="voucher.html" class="btn"><img src="assets/ticket.svg" class="icon themable" alt=""> ${window.LangManager.t('seeVoucher','Xem voucher')}</a>
-            <button id="againBtn" class="btn secondary"><img src="assets/play.svg" class="icon themable" alt=""> ${window.LangManager.t('doAgain','Làm lại')}</button>
-          </div>`;
-        try{ await addPoints(qGained); }catch{}
-        document.getElementById('againBtn').onclick=()=>{ qIdx=0;qScore=0;qGained=0; setProg(); renderQuiz(); };
-      }else{
-        renderQuiz();
-      }
-    });
+/** 10) Quiz state + UI glue **/
+let qIdx=0, qScore=0, qGained=0;
+function perPoints(){ return 5; }
+function setProg(){
+  const p=document.getElementById('qprog');
+  if(!p) return;
+  const pct=Math.round((qIdx/10)*100);
+  p.style.width=pct+'%';
+}
+
+/** 11) Render chính (ưu tiên gọi /gemini/questions, fallback sang /gemini) **/
+async function renderQuiz(){
+  if(!currentPlace){
+    alert(window.LangManager.t('selectAPlace','Hãy chọn địa điểm.'));
+    return;
+  }
+  await loadQuizSeedIfAny();
+
+  const box=document.getElementById('quizBox'); box.classList.remove('hidden');
+  const wrap=document.getElementById('qwrap'); setProg();
+  wrap.innerHTML = `<div class="text-sm text-[color:var(--muted)]">${window.LangManager.t('creatingQuestionFor','Đang tạo câu hỏi cho')} <b>${currentPlace.name}</b>…</div>`;
+
+  const MAX_TRY=3;
+  let parsed=null;
+  for(let attempt=1; attempt<=MAX_TRY; attempt++){
+    const avoid = buildAvoidList();
+    const ctx = getPlaceContext();
+    const seed = buildSeedSnippet();
+    const lang = window.LangManager?.get?.() || 'vi';
+
+    // 1) Thử route chuyên dụng trong Worker
+    let output = await generateQuizViaWorker(
+      `${ctx.name ? `${ctx.name} ${ctx.coords||''}\n` : ''}${ctx.intro||''}${seed?`\n\n${seed}`:''}`,
+      avoid || '',
+      lang
+    );
+
+    // 2) Fallback: gọi generic /gemini với messages chuẩn
+    if (!output) {
+      const messages = buildQuizMessages();
+      output = await callGemini(messages).catch(()=> '');
+    }
+
+    parsed = parseAIQuestion(output);
+
+    // Nếu hợp lệ & chưa lặp → dừng
+    if(parsed && !hasSeenQuestion(currentPlace.id, parsed.question)) break;
+
+    // Lần cuối mà vẫn chưa ok → dùng tạm (nếu có)
+    if(attempt===MAX_TRY && parsed) break;
   }
 
-  function endQuiz(){ qIdx=0;qScore=0;qGained=0; $('#quizBox').classList.add('hidden'); $('#qwrap').innerHTML=''; setProg(); }
+  if(!parsed){
+    wrap.innerHTML=`<div class="text-red-400">${window.LangManager.t('createQuestionFailure','Không tạo được câu phù hợp. Thử lại.')}</div>`;
+    return;
+  }
+
+  rememberQuestion(currentPlace.id, parsed.question);
+
+  const {question, options, correctAnswer, explanation} = parsed;
+  wrap.innerHTML = `
+    <div class="flex items-center justify-between">
+      <div class="quiz-stats">
+        <span class="quiz-badge">${window.LangManager.t('placeBadgeLabel','Địa điểm:')} ${currentPlace.name}</span>
+        <span class="quiz-badge">${window.LangManager.t('questionCount','Câu')} ${qIdx+1}/10</span>
+        <span>${window.LangManager.t('correctNow','Đúng hiện tại:')} <b>${qScore}</b></span>
+      </div>
+      <div class="quiz-actions">
+        <button id="regenBtn" class="btn secondary"><img src="assets/play.svg" class="icon themable" alt=""> ${window.LangManager.t('changeQuestion','Đổi câu khác')}</button>
+        <span class="quiz-badge">${window.LangManager.t('ptsPerQ','+')}${perPoints()} ${window.LangManager.t('ptsPerQTail','đ/câu')}</span>
+      </div>
+    </div>
+    <div class="mt-3 text-lg font-medium">${question}</div>
+    <div id="choices" class="mt-3 grid gap-2"></div>
+    <div id="explain" class="mt-3 hidden quiz-explain"></div>
+    <div class="mt-3 quiz-actions">
+      <button id="nextBtn" class="btn" disabled><img src="assets/play.svg" class="icon themable" alt=""> ${window.LangManager.t('nextQuestion','Câu tiếp')}</button>
+    </div>
+  `;
+
+  const chWrap=document.getElementById('choices');
+  const expEl=document.getElementById('explain');
+  const next=document.getElementById('nextBtn');
+  const regen=document.getElementById('regenBtn');
+
+  let locked=false;
+  options.forEach(opt=>{
+    const div=document.createElement('label'); div.className='quiz-choice';
+    div.innerHTML = `<input type="radio" name="opt" class="mt-1" style="accent-color:var(--primary)"> <div>${opt}</div>`;
+    div.addEventListener('click', ()=>{
+      if(locked) return; locked=true; next.disabled=false;
+      const chosenLetter = opt.charAt(0).toUpperCase();
+      const ok = (chosenLetter === correctAnswer);
+      div.classList.add(ok?'correct':'wrong');
+      if(!ok){
+        [...chWrap.children].forEach(el=>{
+          if(el.textContent.trim().startsWith(correctAnswer)) el.classList.add('correct');
+        });
+      }
+      expEl.textContent = explanation || '';
+      expEl.classList.remove('hidden');
+      if(ok){ qScore += 1; qGained += perPoints(); }
+    });
+    chWrap.appendChild(div);
+  });
+
+  regen.addEventListener('click', ()=>{ renderQuiz(); });
+
+  next.addEventListener('click', async()=>{
+    qIdx++; setProg();
+    if(qIdx>=10){
+      wrap.innerHTML=`
+        <div class="text-xl font-semibold">${window.LangManager.t('doneTitle','Hoàn thành!')}</div>
+        <div class="mt-2">${window.LangManager.t('youCorrect','Bạn đúng')} <b>${qScore}</b>/10 ${window.LangManager.t('youCorrectTail','câu.')}</div>
+        <div class="mt-2">${window.LangManager.t('youGained','Điểm thưởng vừa nhận:')} <b>+${qGained}</b></div>
+        <div class="mt-3 quiz-actions">
+          <a href="voucher.html" class="btn"><img src="assets/ticket.svg" class="icon themable" alt=""> ${window.LangManager.t('seeVoucher','Xem voucher')}</a>
+          <button id="againBtn" class="btn secondary"><img src="assets/play.svg" class="icon themable" alt=""> ${window.LangManager.t('doAgain','Làm lại')}</button>
+        </div>`;
+      try{ await addPoints(qGained); }catch{}
+      document.getElementById('againBtn').onclick=()=>{ qIdx=0;qScore=0;qGained=0; setProg(); renderQuiz(); };
+    }else{
+      renderQuiz();
+    }
+  });
+}
+
+function endQuiz(){
+  qIdx=0; qScore=0; qGained=0;
+  document.getElementById('quizBox')?.classList.add('hidden');
+  const qwrap = document.getElementById('qwrap'); if (qwrap) qwrap.innerHTML='';
+  setProg();
+}
 
   /* ===================== Events ===================== */
   window.addEventListener('DOMContentLoaded', async ()=>{
@@ -1063,5 +1191,6 @@ window.addEventListener('langchange', async ()=>{
   
 </body>
 </html>
+
 
 
