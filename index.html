@@ -590,7 +590,7 @@
 
   function stopRead(){ try{ speechSynthesis.cancel(); }catch{} }
 
-/* ===================== Quiz AI: tránh lặp + bám địa điểm (FULL, no systemInstruction) ===================== */
+/* ===================== Quiz AI: tránh lặp + bám địa điểm (FINAL – dùng models/*, no systemInstruction) ===================== */
 
 /** Endpoints **/
 window.AI_PROXY_URL = window.AI_PROXY_URL || 'https://itravel-guide.baovagiao.workers.dev/gemini';
@@ -598,9 +598,9 @@ window.QUIZ_API_URL = window.QUIZ_API_URL || 'https://itravel-guide.baovagiao.wo
 
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-/** Gọi Gemini qua Worker: GIỮ role + XOAY model thật sự (KHÔNG gửi systemInstruction) **/
+/** Gọi Gemini qua Worker: KHÔNG gửi systemInstruction; KHÔNG bắt buộc gửi model (để Worker dùng mặc định) **/
 async function callGemini(messages) {
-  // lấy system, nhưng sẽ merge vào user turn (không gửi field systemInstruction)
+  // merge system → turn đầu
   let systemInstruction = null;
   const contentTurns = [];
   for (const m of messages) {
@@ -614,7 +614,13 @@ async function callGemini(messages) {
     contentTurns[0].parts.unshift({ text: tag });
   }
 
-  const models = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"];
+  // Nếu vẫn muốn xoay model ở client, dùng đúng tên models/* từ /gemini/models
+  // Khuyến nghị: để Worker chọn model mặc định và KHÔNG truyền model từ client.
+  const models = [
+    "models/gemini-2.5-flash",       // nhanh, ổn định (mặc định ở Worker)
+    "models/gemini-flash-latest",    // alias luôn mới
+    "models/gemini-2.5-flash-lite"   // nhẹ hơn nếu cần
+  ];
   const retriable = new Set([429,500,502,503,504]);
   const maxRetries = 4;
 
@@ -622,14 +628,20 @@ async function callGemini(messages) {
     const model = models[mi];
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
+        // 👉 Cách 1 (khuyên dùng): KHÔNG gửi model → Worker dùng ENV mặc định
+        // const payload = { contents: contentTurns, generationConfig: { temperature: 0.7, topK: 40, topP: 0.95, maxOutputTokens: 1024 } };
+
+        // 👉 Cách 2: muốn ép model ở client → dùng đúng models/*
+        const payload = {
+          model, // <— nếu không muốn ép model, hãy comment dòng này
+          contents: contentTurns,
+          generationConfig: { temperature: 0.7, topK: 40, topP: 0.95, maxOutputTokens: 1024 }
+        };
+
         const res = await fetch(window.AI_PROXY_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model,
-            contents: contentTurns,
-            generationConfig: { temperature: 0.7, topK: 40, topP: 0.95, maxOutputTokens: 1024 }
-          })
+          body: JSON.stringify(payload)
         });
 
         const raw = await res.text();
@@ -668,13 +680,14 @@ async function callGemini(messages) {
   return "Hiện mô hình đang quá tải. Hãy thử lại sau ít giây.";
 }
 
-/** (Ưu tiên) Gọi route chuyên tạo quiz ở Worker **/
+/** Ưu tiên route chuyên tạo quiz ở Worker **/
 async function generateQuizViaWorker(text, avoidBlk = '', lang = (window.LangManager?.get?.() || 'vi')) {
   try {
     const res = await fetch(window.QUIZ_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, avoidBlk, lang })
+      // nếu muốn ép model ở đây: thêm model: "models/gemini-2.5-flash"
     });
     const raw = await res.text();
     let data = {}; try { data = JSON.parse(raw); } catch {}
@@ -829,7 +842,7 @@ function parseAIQuestion(output){
   return { question, options, correctAnswer, explanation };
 }
 
-/** State + UI glue (giữ nguyên logic cũ) **/
+/** State + UI glue **/
 let qIdx=0, qScore=0, qGained=0;
 function perPoints(){ return 5; }
 function setProg(){ const p=document.getElementById('qprog'); if(!p) return; const pct=Math.round((qIdx/10)*100); p.style.width=pct+'%'; }
@@ -849,7 +862,7 @@ async function renderQuiz(){
     const seed = buildSeedSnippet();
     const lang = window.LangManager?.get?.() || 'vi';
 
-    // 1) Route chuyên dụng
+    // 1) Worker route chuyên dụng
     let output = await generateQuizViaWorker(
       `${ctx.name ? `${ctx.name} ${ctx.coords||''}\n` : ''}${ctx.intro||''}${seed?`\n\n${seed}`:''}`,
       avoid || '',
@@ -944,14 +957,31 @@ function endQuiz(){ qIdx=0;qScore=0;qGained=0; document.getElementById('quizBox'
 
 /** Test nhanh (Console) **/
 async function _testGemini() {
-  const body = { model: "gemini-1.5-flash", contents: [{ role: "user", parts: [{ text: "Ping?" }] }], generationConfig: { maxOutputTokens: 64 } };
+  // Cách A (khuyên dùng): KHÔNG truyền model, dùng mặc định ở Worker (models/gemini-2.5-flash)
+  const body = { contents: [{ role: "user", parts: [{ text: "Ping?" }] }], generationConfig: { maxOutputTokens: 64 } };
   const r = await fetch(window.AI_PROXY_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const raw = await r.text(); console.log('[/gemini] status=', r.status, 'raw=', raw);
+
+  // Cách B: nếu muốn test truyền model, dùng đúng tên models/*
+  // const r2 = await fetch(window.AI_PROXY_URL, {
+  //   method: "POST",
+  //   headers: { "Content-Type": "application/json" },
+  //   body: JSON.stringify({
+  //     model: "models/gemini-2.5-flash",
+  //     contents: [{ role: "user", parts: [{ text: "Ping with explicit model?" }] }]
+  //   })
+  // });
+  // console.log('[/gemini explicit] status=', r2.status, 'raw=', await r2.text());
 }
 async function _testQuiz() {
-  const r = await fetch(window.QUIZ_API_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: "Đại Nội – Hoàng thành Huế", lang: "vi" }) });
+  const r = await fetch(window.QUIZ_API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: "Đại Nội – Hoàng thành Huế", lang: "vi" })
+  });
   const raw = await r.text(); console.log('[/gemini/questions] status=', r.status, 'raw=', raw);
 }
+
 
   /* ===================== Events ===================== */
   window.addEventListener('DOMContentLoaded', async ()=>{
@@ -1139,6 +1169,7 @@ window.addEventListener('langchange', async ()=>{
   
 </body>
 </html>
+
 
 
 
