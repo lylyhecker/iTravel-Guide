@@ -590,31 +590,24 @@
 
   function stopRead(){ try{ speechSynthesis.cancel(); }catch{} }
 
- /* ===================== Quiz AI: tránh lặp + bám địa điểm (FULL, DROP-IN) ===================== */
+/* ===================== Quiz AI: tránh lặp + bám địa điểm (FULL, DROP-IN) ===================== */
 
-/** 1) Endpoint cấu hình **/
-window.AI_PROXY_URL  = window.AI_PROXY_URL  || 'https://itravel-guide.baovagiao.workers.dev/gemini';
-window.QUIZ_API_URL  = window.QUIZ_API_URL  || 'https://itravel-guide.baovagiao.workers.dev/gemini/questions';
+/** Endpoints **/
+window.AI_PROXY_URL = window.AI_PROXY_URL || 'https://itravel-guide.baovagiao.workers.dev/gemini';
+window.QUIZ_API_URL = window.QUIZ_API_URL || 'https://itravel-guide.baovagiao.workers.dev/gemini/questions';
 
-/** 2) Helpers **/
+/** Helpers **/
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-/** 3) Gọi Gemini qua Worker: GIỮ role + XOAY model thật sự **/
+/** Gọi Gemini qua Worker: GIỮ role + XOAY model thật sự **/
 async function callGemini(messages) {
-  // Rút systemInstruction & build contents chuẩn
   let systemInstruction = null;
   const contentTurns = [];
   for (const m of messages) {
-    if (m.role === 'system') {
-      systemInstruction = String(m.content || '');
-    } else {
-      // role "assistant" -> "model", còn lại "user"
-      contentTurns.push({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: String(m.content||'') }] });
-    }
+    if (m.role === 'system') systemInstruction = String(m.content || '');
+    else contentTurns.push({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: String(m.content||'') }] });
   }
-  if (contentTurns.length === 0) {
-    contentTurns.push({ role: 'user', parts: [{ text: '' }] });
-  }
+  if (contentTurns.length === 0) contentTurns.push({ role: 'user', parts: [{ text: '' }] });
 
   const models = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"];
   const retriable = new Set([429,500,502,503,504]);
@@ -630,36 +623,30 @@ async function callGemini(messages) {
           body: JSON.stringify({
             model,
             contents: contentTurns,
-            ...(systemInstruction ? {
-              systemInstruction: { role: "system", parts: [{ text: systemInstruction }] }
-            } : {}),
+            ...(systemInstruction ? { systemInstruction: { role: "system", parts: [{ text: systemInstruction }] } } : {}),
             generationConfig: { temperature: 0.7, topK: 40, topP: 0.95, maxOutputTokens: 1024 }
           })
         });
 
         const raw = await res.text();
-        let data = {};
-        try { data = JSON.parse(raw); } catch {}
+        let data = {}; try { data = JSON.parse(raw); } catch {}
 
         if (!res.ok) {
           const serverMsg = data?.error?.message ? `: ${data.error.message}` : '';
           if (retriable.has(res.status) && attempt < maxRetries - 1) {
             const delay = Math.pow(2, attempt) * 200 + Math.floor(Math.random() * 120);
-            await sleep(delay);
-            continue;
+            await sleep(delay); continue;
           }
-          if (mi < models.length - 1) break; // thử model khác
+          if (mi < models.length - 1) break;
           throw new Error(`Lỗi API (${res.status})${serverMsg}${(!serverMsg && raw) ? ` | raw: ${raw.slice(0,200)}` : ''}`);
         }
 
         const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "";
         if (!text.trim()) {
-          // Có thể bị blockReason
           const reason = data?.promptFeedback?.blockReason;
           if (attempt < maxRetries - 1) {
             const delay = Math.pow(2, attempt) * 200 + Math.floor(Math.random() * 120);
-            await sleep(delay);
-            continue;
+            await sleep(delay); continue;
           }
           if (mi < models.length - 1) break;
           throw new Error(`Phản hồi trống${reason ? ` (blockReason=${reason})` : ''}.`);
@@ -668,8 +655,7 @@ async function callGemini(messages) {
       } catch (err) {
         if (attempt < maxRetries - 1) {
           const delay = Math.pow(2, attempt) * 200 + Math.floor(Math.random() * 120);
-          await sleep(delay);
-          continue;
+          await sleep(delay); continue;
         }
         if (mi < models.length - 1) break;
       }
@@ -678,7 +664,7 @@ async function callGemini(messages) {
   return "Hiện mô hình đang quá tải. Hãy thử lại sau ít giây.";
 }
 
-/** 4) (Tùy chọn) Gọi route chuyên tạo quiz ở Worker (đã có fallback/safety) **/
+/** (Tùy chọn) Gọi route chuyên tạo quiz ở Worker **/
 async function generateQuizViaWorker(text, avoidBlk = '', lang = (window.LangManager?.get?.() || 'vi')) {
   try {
     const res = await fetch(window.QUIZ_API_URL, {
@@ -686,53 +672,41 @@ async function generateQuizViaWorker(text, avoidBlk = '', lang = (window.LangMan
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text, avoidBlk, lang })
     });
-    const data = await res.json();
+    const raw = await res.text();
+    let data = {}; try { data = JSON.parse(raw); } catch {}
+    console.log('[/gemini/questions] status=', res.status);
+    try { console.log('json', JSON.stringify(data, null, 2)); } catch {}
     if (data?.question) return data.question;
-    console.warn('Quiz worker info:', data); // sẽ thấy blockReason/promptFeedback nếu có
     return '';
-  } catch {
-    return '';
-  }
+  } catch { return ''; }
 }
 
-/** 5) Seed quiz có sẵn **/
-let quizSeed = null, seedLoadedFor = null;
+/** Seed quiz nếu có **/
+let quizSeed=null, seedLoadedFor=null;
 async function loadQuizSeedIfAny(){
-  if (!currentPlace) return;
-  if (seedLoadedFor === currentPlace.id) return;
+  if(!currentPlace) return;
+  if(seedLoadedFor === currentPlace.id) return;
   seedLoadedFor = currentPlace.id;
-  quizSeed = null;
-  if (currentPlace.quiz_url){
-    try {
-      const r = await fetch(currentPlace.quiz_url, { cache: 'no-store' });
-      if (r.ok) quizSeed = await r.json();
-    } catch {}
+  quizSeed=null;
+  if(currentPlace.quiz_url){
+    try{ const r=await fetch(currentPlace.quiz_url,{cache:'no-store'}); if(r.ok) quizSeed=await r.json(); }catch{}
   }
 }
-
-/** 6) Tránh lặp câu — bộ nhớ ngắn **/
-const QUIZ_MEMORY = new Map(); // { placeId => Set(normalizedQuestion) }
-function normalizeQ(q){
-  return String(q||'').toLowerCase()
-    .replace(/\s+/g,' ')
-    .replace(/[“”"'.?!:,;()\[\]]/g,'')
-    .trim();
-}
+const QUIZ_MEMORY = new Map();
+function normalizeQ(q){ return String(q||'').toLowerCase().replace(/\s+/g,' ').replace(/[“”"'.?!:,;()\[\]]/g,'').trim(); }
 function rememberQuestion(placeId, q){
   const key = placeId || '_global';
-  if (!QUIZ_MEMORY.has(key)) QUIZ_MEMORY.set(key, new Set());
+  if(!QUIZ_MEMORY.has(key)) QUIZ_MEMORY.set(key, new Set());
   const s = QUIZ_MEMORY.get(key);
   s.add(normalizeQ(q));
-  if (s.size > 30){ const first = s.values().next().value; s.delete(first); } // cap 30
+  if(s.size > 30){ const first = s.values().next().value; s.delete(first); }
 }
 function hasSeenQuestion(placeId, q){
   const key = placeId || '_global';
   const s = QUIZ_MEMORY.get(key);
-  if (!s) return false;
+  if(!s) return false;
   return s.has(normalizeQ(q));
 }
-
-/** 7) Context địa điểm & seed **/
 function getPlaceContext(){
   const name = currentPlace?.name || '';
   const intro = (currentReadText || '').replace(/\s+/g,' ').trim().slice(0, 1000);
@@ -741,14 +715,14 @@ function getPlaceContext(){
 }
 function buildAvoidList(){
   const seen = QUIZ_MEMORY.get(currentPlace?.id || '_global');
-  if (!seen || !seen.size) return '';
+  if(!seen || !seen.size) return '';
   return Array.from(seen).slice(-6).map(q=>`- ${q}`).join('\n');
 }
 function buildSeedSnippet(){
-  if (!Array.isArray(quizSeed) || !quizSeed.length) return '';
+  if(!Array.isArray(quizSeed) || !quizSeed.length) return '';
   const sample = quizSeed.slice(0,2).map((it, idx)=>{
-    const letters = ['A','B','C','D'];
-    const lines = (it.choices||[]).slice(0,3).map((c,i)=> `${letters[i]}. ${c}`).join('\n');
+    const letters=['A','B','C','D'];
+    const lines=(it.choices||[]).slice(0,3).map((c,i)=> `${letters[i]}. ${c}`).join('\n');
     const ans = typeof it.answer==='number' ? letters[it.answer] : 'A';
     return `Ví dụ ${idx+1}:
 ${it.q}
@@ -758,29 +732,22 @@ Giải thích: ${it.explain||''}`;
   }).join('\n\n');
   return sample;
 }
-
-/** 8) Build prompt messages **/
 function buildQuizMessages(){
   const ctx = getPlaceContext();
   const avoid = buildAvoidList();
   const lang = window.LangManager?.get?.() || 'vi';
-
   const placeHint = (lang==='en'
     ? (ctx.name ? `PLACE: ${ctx.name} ${ctx.coords?ctx.coords:''}` : '')
     : (ctx.name ? `ĐỊA ĐIỂM: ${ctx.name} ${ctx.coords?ctx.coords:''}` : '')
   );
-
   const facts = ctx.intro
     ? (lang==='en' ? `SUMMARY:\n${ctx.intro}\n` : `TÓM TẮT THUYẾT MINH:\n${ctx.intro}\n`)
     : '';
-
   const avoidBlk = avoid
     ? (lang==='en'
         ? `DO NOT REPEAT recently shown questions:\n${avoid}\n`
-        : `KHÔNG ĐƯỢC LẶP LẠI các câu gần đây:\n${avoid}\n`
-      )
+        : `KHÔNG ĐƯỢC LẶP LẠI các câu gần đây:\n${avoid}\n`)
     : '';
-
   const seed = buildSeedSnippet();
 
   const userPrompt = (lang === 'en' ? `
@@ -831,33 +798,23 @@ Giải thích: [Giải thích ngắn gọn, chính xác]
   ];
 }
 
-/** 9) Parser “dễ tính” **/
+/** Parser “dễ tính” **/
 function parseAIQuestion(output){
   if(!output) return null;
-
   const lines = output
     .split('\n')
     .map(l => l.replace(/\s+/g, ' ').trim())
     .filter(Boolean);
-
   const isOpt = (s) => /^[\-\*]?\s*[ABCabc][\.\:\)\-、]\s+/.test(s);
-  const isAns = (s) =>
-    /^đáp\s*án(\s*đúng)?\s*:/i.test(s) || /^correct\s*answer\s*:/i.test(s);
-  const isExplain = (s) =>
-    /^giải\s*thích\s*:/i.test(s) || /^explanation\s*:/i.test(s);
+  const isAns = (s) => /^đáp\s*án(\s*đúng)?\s*:/i.test(s) || /^correct\s*answer\s*:/i.test(s);
+  const isExplain = (s) => /^giải\s*thích\s*:/i.test(s) || /^explanation\s*:/i.test(s);
 
   let question = null;
-  for (const l of lines) {
-    if (!isOpt(l) && !isAns(l) && !isExplain(l)) {
-      question = l;
-      break;
-    }
-  }
+  for (const l of lines) if (!isOpt(l) && !isAns(l) && !isExplain(l)) { question = l; break; }
   if (!question) return null;
 
   const options = lines.filter(isOpt).slice(0,3);
   if (options.length < 3) return null;
-
   const correctLine = lines.find(isAns);
   const explainLine = lines.find(isExplain);
   if (!correctLine || !explainLine) return null;
@@ -867,59 +824,45 @@ function parseAIQuestion(output){
   if (!correctAnswer) return null;
 
   const explanation = explainLine.split(':').slice(1).join(':').trim();
-
   return { question, options, correctAnswer, explanation };
 }
 
-/** 10) Quiz state + UI glue **/
+/** Quiz state + UI glue **/
 let qIdx=0, qScore=0, qGained=0;
 function perPoints(){ return 5; }
-function setProg(){
-  const p=document.getElementById('qprog');
-  if(!p) return;
-  const pct=Math.round((qIdx/10)*100);
-  p.style.width=pct+'%';
-}
+function setProg(){ const p=document.getElementById('qprog'); if(!p) return; const pct=Math.round((qIdx/10)*100); p.style.width=pct+'%'; }
 
-/** 11) Render chính (ưu tiên gọi /gemini/questions, fallback sang /gemini) **/
+/** Render chính: ưu tiên /gemini/questions, fallback /gemini **/
 async function renderQuiz(){
-  if(!currentPlace){
-    alert(window.LangManager.t('selectAPlace','Hãy chọn địa điểm.'));
-    return;
-  }
+  if(!currentPlace){ alert(window.LangManager.t('selectAPlace','Hãy chọn địa điểm.')); return; }
   await loadQuizSeedIfAny();
 
   const box=document.getElementById('quizBox'); box.classList.remove('hidden');
   const wrap=document.getElementById('qwrap'); setProg();
   wrap.innerHTML = `<div class="text-sm text-[color:var(--muted)]">${window.LangManager.t('creatingQuestionFor','Đang tạo câu hỏi cho')} <b>${currentPlace.name}</b>…</div>`;
 
-  const MAX_TRY=3;
-  let parsed=null;
+  const MAX_TRY=3; let parsed=null;
   for(let attempt=1; attempt<=MAX_TRY; attempt++){
     const avoid = buildAvoidList();
     const ctx = getPlaceContext();
     const seed = buildSeedSnippet();
     const lang = window.LangManager?.get?.() || 'vi';
 
-    // 1) Thử route chuyên dụng trong Worker
+    // 1) Route chuyên dụng
     let output = await generateQuizViaWorker(
       `${ctx.name ? `${ctx.name} ${ctx.coords||''}\n` : ''}${ctx.intro||''}${seed?`\n\n${seed}`:''}`,
       avoid || '',
       lang
     );
 
-    // 2) Fallback: gọi generic /gemini với messages chuẩn
+    // 2) Fallback generic
     if (!output) {
       const messages = buildQuizMessages();
       output = await callGemini(messages).catch(()=> '');
     }
 
     parsed = parseAIQuestion(output);
-
-    // Nếu hợp lệ & chưa lặp → dừng
     if(parsed && !hasSeenQuestion(currentPlace.id, parsed.question)) break;
-
-    // Lần cuối mà vẫn chưa ok → dùng tạm (nếu có)
     if(attempt===MAX_TRY && parsed) break;
   }
 
@@ -966,9 +909,7 @@ async function renderQuiz(){
       const ok = (chosenLetter === correctAnswer);
       div.classList.add(ok?'correct':'wrong');
       if(!ok){
-        [...chWrap.children].forEach(el=>{
-          if(el.textContent.trim().startsWith(correctAnswer)) el.classList.add('correct');
-        });
+        [...chWrap.children].forEach(el=>{ if(el.textContent.trim().startsWith(correctAnswer)) el.classList.add('correct'); });
       }
       expEl.textContent = explanation || '';
       expEl.classList.remove('hidden');
@@ -998,12 +939,32 @@ async function renderQuiz(){
   });
 }
 
-function endQuiz(){
-  qIdx=0; qScore=0; qGained=0;
-  document.getElementById('quizBox')?.classList.add('hidden');
-  const qwrap = document.getElementById('qwrap'); if (qwrap) qwrap.innerHTML='';
-  setProg();
+function endQuiz(){ qIdx=0;qScore=0;qGained=0; document.getElementById('quizBox')?.classList.add('hidden'); const qwrap=document.getElementById('qwrap'); if(qwrap) qwrap.innerHTML=''; setProg(); }
+
+/** ====== 2 hàm test nhanh để soi lỗi “ra chữ” trong Console ====== **/
+async function _testGemini() {
+  const body = {
+    model: "gemini-1.5-flash",
+    contents: [{ role: "user", parts: [{ text: "Ping?" }] }],
+    generationConfig: { maxOutputTokens: 64 }
+  };
+  const r = await fetch(window.AI_PROXY_URL, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  const raw = await r.text();
+  console.log('[/gemini] status=', r.status, 'raw=', raw);
 }
+
+async function _testQuiz() {
+  const r = await fetch(window.QUIZ_API_URL, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: "Đại Nội – Hoàng thành Huế", lang: "vi" })
+  });
+  const raw = await r.text();
+  console.log('[/gemini/questions] status=', r.status, 'raw=', raw);
+}
+
 
   /* ===================== Events ===================== */
   window.addEventListener('DOMContentLoaded', async ()=>{
@@ -1191,6 +1152,7 @@ window.addEventListener('langchange', async ()=>{
   
 </body>
 </html>
+
 
 
 
