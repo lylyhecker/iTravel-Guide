@@ -590,17 +590,17 @@
 
   function stopRead(){ try{ speechSynthesis.cancel(); }catch{} }
 
-/* ===================== Quiz AI: tránh lặp + bám địa điểm (FULL, DROP-IN) ===================== */
+/* ===================== Quiz AI: tránh lặp + bám địa điểm (FULL, no systemInstruction) ===================== */
 
 /** Endpoints **/
 window.AI_PROXY_URL = window.AI_PROXY_URL || 'https://itravel-guide.baovagiao.workers.dev/gemini';
 window.QUIZ_API_URL = window.QUIZ_API_URL || 'https://itravel-guide.baovagiao.workers.dev/gemini/questions';
 
-/** Helpers **/
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-/** Gọi Gemini qua Worker: GIỮ role + XOAY model thật sự **/
+/** Gọi Gemini qua Worker: GIỮ role + XOAY model thật sự (KHÔNG gửi systemInstruction) **/
 async function callGemini(messages) {
+  // lấy system, nhưng sẽ merge vào user turn (không gửi field systemInstruction)
   let systemInstruction = null;
   const contentTurns = [];
   for (const m of messages) {
@@ -608,6 +608,11 @@ async function callGemini(messages) {
     else contentTurns.push({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: String(m.content||'') }] });
   }
   if (contentTurns.length === 0) contentTurns.push({ role: 'user', parts: [{ text: '' }] });
+
+  if (systemInstruction) {
+    const tag = `[SYSTEM]\n${systemInstruction}\n[/SYSTEM]\n\n`;
+    contentTurns[0].parts.unshift({ text: tag });
+  }
 
   const models = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"];
   const retriable = new Set([429,500,502,503,504]);
@@ -623,7 +628,6 @@ async function callGemini(messages) {
           body: JSON.stringify({
             model,
             contents: contentTurns,
-            ...(systemInstruction ? { systemInstruction: { role: "system", parts: [{ text: systemInstruction }] } } : {}),
             generationConfig: { temperature: 0.7, topK: 40, topP: 0.95, maxOutputTokens: 1024 }
           })
         });
@@ -664,7 +668,7 @@ async function callGemini(messages) {
   return "Hiện mô hình đang quá tải. Hãy thử lại sau ít giây.";
 }
 
-/** (Tùy chọn) Gọi route chuyên tạo quiz ở Worker **/
+/** (Ưu tiên) Gọi route chuyên tạo quiz ở Worker **/
 async function generateQuizViaWorker(text, avoidBlk = '', lang = (window.LangManager?.get?.() || 'vi')) {
   try {
     const res = await fetch(window.QUIZ_API_URL, {
@@ -681,7 +685,7 @@ async function generateQuizViaWorker(text, avoidBlk = '', lang = (window.LangMan
   } catch { return ''; }
 }
 
-/** Seed quiz nếu có **/
+/** Seed & memory (unchanged) **/
 let quizSeed=null, seedLoadedFor=null;
 async function loadQuizSeedIfAny(){
   if(!currentPlace) return;
@@ -736,6 +740,7 @@ function buildQuizMessages(){
   const ctx = getPlaceContext();
   const avoid = buildAvoidList();
   const lang = window.LangManager?.get?.() || 'vi';
+
   const placeHint = (lang==='en'
     ? (ctx.name ? `PLACE: ${ctx.name} ${ctx.coords?ctx.coords:''}` : '')
     : (ctx.name ? `ĐỊA ĐIỂM: ${ctx.name} ${ctx.coords?ctx.coords:''}` : '')
@@ -798,13 +803,10 @@ Giải thích: [Giải thích ngắn gọn, chính xác]
   ];
 }
 
-/** Parser “dễ tính” **/
+/** Parser **/
 function parseAIQuestion(output){
   if(!output) return null;
-  const lines = output
-    .split('\n')
-    .map(l => l.replace(/\s+/g, ' ').trim())
-    .filter(Boolean);
+  const lines = output.split('\n').map(l=>l.replace(/\s+/g,' ').trim()).filter(Boolean);
   const isOpt = (s) => /^[\-\*]?\s*[ABCabc][\.\:\)\-、]\s+/.test(s);
   const isAns = (s) => /^đáp\s*án(\s*đúng)?\s*:/i.test(s) || /^correct\s*answer\s*:/i.test(s);
   const isExplain = (s) => /^giải\s*thích\s*:/i.test(s) || /^explanation\s*:/i.test(s);
@@ -827,12 +829,11 @@ function parseAIQuestion(output){
   return { question, options, correctAnswer, explanation };
 }
 
-/** Quiz state + UI glue **/
+/** State + UI glue (giữ nguyên logic cũ) **/
 let qIdx=0, qScore=0, qGained=0;
 function perPoints(){ return 5; }
 function setProg(){ const p=document.getElementById('qprog'); if(!p) return; const pct=Math.round((qIdx/10)*100); p.style.width=pct+'%'; }
 
-/** Render chính: ưu tiên /gemini/questions, fallback /gemini **/
 async function renderQuiz(){
   if(!currentPlace){ alert(window.LangManager.t('selectAPlace','Hãy chọn địa điểm.')); return; }
   await loadQuizSeedIfAny();
@@ -941,30 +942,16 @@ async function renderQuiz(){
 
 function endQuiz(){ qIdx=0;qScore=0;qGained=0; document.getElementById('quizBox')?.classList.add('hidden'); const qwrap=document.getElementById('qwrap'); if(qwrap) qwrap.innerHTML=''; setProg(); }
 
-/** ====== 2 hàm test nhanh để soi lỗi “ra chữ” trong Console ====== **/
+/** Test nhanh (Console) **/
 async function _testGemini() {
-  const body = {
-    model: "gemini-1.5-flash",
-    contents: [{ role: "user", parts: [{ text: "Ping?" }] }],
-    generationConfig: { maxOutputTokens: 64 }
-  };
-  const r = await fetch(window.AI_PROXY_URL, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
-  const raw = await r.text();
-  console.log('[/gemini] status=', r.status, 'raw=', raw);
+  const body = { model: "gemini-1.5-flash", contents: [{ role: "user", parts: [{ text: "Ping?" }] }], generationConfig: { maxOutputTokens: 64 } };
+  const r = await fetch(window.AI_PROXY_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const raw = await r.text(); console.log('[/gemini] status=', r.status, 'raw=', raw);
 }
-
 async function _testQuiz() {
-  const r = await fetch(window.QUIZ_API_URL, {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text: "Đại Nội – Hoàng thành Huế", lang: "vi" })
-  });
-  const raw = await r.text();
-  console.log('[/gemini/questions] status=', r.status, 'raw=', raw);
+  const r = await fetch(window.QUIZ_API_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: "Đại Nội – Hoàng thành Huế", lang: "vi" }) });
+  const raw = await r.text(); console.log('[/gemini/questions] status=', r.status, 'raw=', raw);
 }
-
 
   /* ===================== Events ===================== */
   window.addEventListener('DOMContentLoaded', async ()=>{
@@ -1152,6 +1139,7 @@ window.addEventListener('langchange', async ()=>{
   
 </body>
 </html>
+
 
 
 
